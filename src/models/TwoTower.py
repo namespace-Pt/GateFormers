@@ -1,24 +1,22 @@
 from .BaseModel import TwoTowerBaseModel
-from .modules.encoder import *
-from .modules.embedding import *
 
 
 
 class TwoTowerModel(TwoTowerBaseModel):
-    def __init__(self, manager):
-        super().__init__(manager)
-
-        self.embedding = BertEmbedding(manager)
-        if manager.newsEncoder == "cnn":
-            self.newsEncoder = CnnNewsEncoder(manager)
-        if manager.userEncoder == "rnn":
-            self.userEncoder = RnnUserEncoder(manager)
+    def __init__(self, manager, newsEncoder, userEncoder):
+        super().__init__(manager, name="-".join(["TwoTower", newsEncoder.name, userEncoder.name]))
+        self.newsEncoder = newsEncoder
+        self.userEncoder = userEncoder
 
 
-    def _encode_news(self, token_id, attn_mask):
-        news_token_embedding, news_embedding = self.newsEncoder(
-            self.embedding(token_id), attn_mask
-        )
+    def _encode_news(self, x, cdd=True):
+        if cdd:
+            token_id = x["cdd_token_id"].to(self.device)
+            attn_mask = x['cdd_attn_mask'].to(self.device)
+        else:
+            token_id = x["his_token_id"].to(self.device)
+            attn_mask = x["his_attn_mask"].to(self.device)
+        news_token_embedding, news_embedding = self.newsEncoder(token_id, attn_mask)
         return news_token_embedding, news_embedding
 
 
@@ -28,15 +26,10 @@ class TwoTowerModel(TwoTowerBaseModel):
 
 
     def forward(self, x):
-        cdd_token_id = x["cdd_token_id"].to(self.device)
-        cdd_attn_mask = x['cdd_attn_mask'].to(self.device)
-        _, cdd_news_embedding = self._encode_news(cdd_token_id, cdd_attn_mask)
+        _, cdd_news_embedding = self._encode_news(x)
+        _, his_news_embedding = self._encode_news(x, cdd=False)
 
-        his_token_id = x["his_token_id"].to(self.device)
-        his_attn_mask = x["his_attn_mask"].to(self.device)
-        _, his_news_embedding = self._encode_news(his_token_id, his_attn_mask)
-
-        user_embedding = self._encode_user(his_news_embedding, his_mask=x['his_mask'])
+        user_embedding = self._encode_user(his_news_embedding, his_mask=x['his_mask'].to(self.device))
         logits = self._compute_logits(cdd_news_embedding, user_embedding)
 
         labels = x["label"].to(self.device)

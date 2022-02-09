@@ -2,6 +2,7 @@ import torch.multiprocessing as mp
 from utils.manager import Manager
 from models.TwoTower import TwoTowerModel
 from torch.nn.parallel import DistributedDataParallel as DDP
+from models.modules.encoder import *
 
 
 def main(rank, manager):
@@ -13,18 +14,35 @@ def main(rank, manager):
     """
     manager.setup(rank)
     loaders = manager.prepare()
-    model = TwoTowerModel(manager).to(manager.device)
 
-    if manager.world_size > 1:
-        model = DDP(model, device_ids=[rank], output_device=rank)
+    if manager.newsEncoder == "cnn":
+        newsEncoder = CnnNewsEncoder(manager)
+    elif manager.newsEncoder == "bert":
+        newsEncoder = BertNewsEncoder(manager)
+    elif manager.newsEncoder == "tfm":
+        newsEncoder = TfmNewsEncoder(manager)
+    if manager.userEncoder == "rnn":
+        userEncoder = RnnUserEncoder(manager)
+    elif manager.userEncoder == "sum":
+        userEncoder = SumUserEncoder(manager)
+    elif manager.userEncoder == "avg":
+        userEncoder = AvgUserEncoder(manager)
+    elif manager.userEncoder == "attn":
+        userEncoder = AttnUserEncoder(manager)
+    elif manager.userEncoder == "tfm":
+        userEncoder = TfmUserEncoder(manager)
+
+    model = TwoTowerModel(manager, newsEncoder, userEncoder).to(manager.device)
 
     if manager.mode == 'train':
+        if manager.world_size > 1:
+            model = DDP(model, device_ids=[rank], output_device=rank)
         manager.train(model, loaders)
 
     elif manager.mode == 'dev':
-        if isinstance(model, DDP):
-            model.module.dev(manager, loaders, load=True, log=True)
-        else:
+        # if isinstance(model, DDP):
+        #     model.module.dev(manager, loaders, load=True, log=True)
+        # else:
             model.dev(manager, loaders, load=True, log=True)
 
 

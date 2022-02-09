@@ -246,10 +246,10 @@ class MIND_News(MIND):
         super().__init__(manager, data_dir, load_news=True, load_behaviors=False)
 
         # cut off padded news
-        self.token_ids = self.token_ids[1:]
-        self.attn_masks = self.attn_masks[1:]
-        if hasattr(self, "gate_masks"):
-            self.gate_masks = self.gate_masks[1:]
+        # self.token_ids = self.token_ids[1:]
+        # self.attn_masks = self.attn_masks[1:]
+        # if hasattr(self, "gate_masks"):
+        #     self.gate_masks = self.gate_masks[1:]
 
 
     def __getitem__(self, index):

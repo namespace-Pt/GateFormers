@@ -43,7 +43,7 @@ class Manager():
         parser.add_argument("-m", "--mode", dest="mode", help="choose mode", default="train")
         parser.add_argument("-d", "--device", dest="device", help="gpu index, -1 for cpu", type=int, default=0)
         parser.add_argument("-bs", "--batch-size", dest="batch_size", help="batch size in training", type=int, default=32)
-        parser.add_argument("-bse", "--batch-size-encode", dest="batch_size_encode", help="batch size in encoding", type=int, default=500)
+        parser.add_argument("-bse", "--batch-size-encode", dest="batch_size_encode", help="batch size in encoding", type=int, default=200)
         parser.add_argument("-dl", "--dataloaders", dest="dataloaders", help="training dataloaders", nargs="+", action="extend", choices=["train", "dev", "news", "behaviors"], default=["train", "dev", "news"])
 
         parser.add_argument("-ck","--checkpoint", dest="checkpoint", help="load the model from checkpoint before training/evaluating", type=str, default="none")
@@ -76,8 +76,13 @@ class Manager():
         parser.add_argument("-ne", "--news-encoder", dest="newsEncoder", default="cnn")
         parser.add_argument("-ue", "--user-encoder", dest="userEncoder", default="rnn")
 
-        parser.add_argument("--cnn-dim", dest="cnn_dim", default=300)
-        parser.add_argument("--rnn-dim", dest="rnn_dim", default=300)
+        parser.add_argument("-hd", "--hidden-dim", dest="hidden_dim", type=int, default=768)
+        # parser.add_argument("--cnn-dim", dest="cnn_dim", type=int, default=300)
+        # parser.add_argument("--rnn-dim", dest="rnn_dim", type=int, default=300)
+        parser.add_argument("-tfmd", "--transformer-dim", dest="tfm_dim", help="hidden dimension of transformer model", type=int, default=768)
+        parser.add_argument("-tfmh", "--transformer-head-num", dest="tfm_head_num", help="attention head number of tranformer model", type=int, default=12)
+        parser.add_argument("-tfmp", "--transformer-dropout-p", dest="tfm_dropout_p", help="dropout probability", type=float, default=0.1)
+
 
         parser.add_argument("-plm", dest="plm", help="short name of pre-trained language models", type=str, default="bert")
 
@@ -175,7 +180,7 @@ class Manager():
         }
 
         self.distributed = self.world_size > 1
-        self.exclude_hparams = set(["plm_dim", "plm_dir", "data_root", "cache_root", "distributed", "exclude_hparams", "rank", "epochs", "mode", "debug", "special_token_ids", "validate_step", "hold_step", "exclude_hparams", "device", "save_at_validate", "preprocess_threads", "base_rank", "world_size", "max_title_length", "max_abs_length"])
+        self.exclude_hparams = set(["metrics", "plm_dim", "plm_dir", "data_root", "cache_root", "distributed", "exclude_hparams", "rank", "epochs", "mode", "debug", "special_token_ids", "validate_step", "hold_step", "exclude_hparams", "device", "save_at_validate", "preprocess_threads", "base_rank", "world_size", "max_title_length", "max_abs_length"])
 
         logger.info("Hyper Parameters are:\n{}\n".format({k:v for k,v in args.items() if k[0:2] != "__" and k not in self.exclude_hparams}))
 

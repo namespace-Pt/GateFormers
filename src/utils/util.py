@@ -35,11 +35,11 @@ def download_plm(bert, dir):
     model.save_pretrained(dir)
 
 
-def pack_results(impr_indexes, masks, *associated_lists):
+def pack_results(impr_indices, masks, *associated_lists):
         """
             group lists by impr_index
         Args:
-            associated_lists: list of lists, where list[i] is associated with the impr_indexes[i]
+            associated_lists: list of lists, where list[i] is associated with the impr_indices[i]
 
         Returns:
             Iterable: grouped labels (if inputted) and preds
@@ -47,7 +47,7 @@ def pack_results(impr_indexes, masks, *associated_lists):
         list_num = len(associated_lists)
         dicts = [defaultdict(list) for i in range(list_num)]
 
-        for x in tqdm(zip(impr_indexes, masks, *associated_lists), desc="Packing Results", ncols=80):
+        for x in tqdm(zip(impr_indices, masks, *associated_lists), total=len(impr_indices), desc="Packing Results", ncols=80):
             key = x[0]
             mask = x[1]
             values = x[2:]

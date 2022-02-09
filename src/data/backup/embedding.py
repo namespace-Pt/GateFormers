@@ -1,5 +1,4 @@
 import torch.nn as nn
-from transformers import AutoModel
 
 
 class BertEmbedding(nn.Module):
@@ -13,8 +12,7 @@ class BertEmbedding(nn.Module):
         super().__init__()
 
         self.hidden_dim = manager.plm_dim
-        bert = AutoModel.from_pretrained(manager.plm_dir)
-        self.embeddings = bert.embeddings.word_embeddings
+
 
 
     def forward(self, token_ids):
