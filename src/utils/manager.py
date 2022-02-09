@@ -51,12 +51,13 @@ class Manager():
         parser.add_argument("-hst","--hold-step", dest="hold_step", help="don't evaluate until reaching hold step", type=str, default="0")
         parser.add_argument("-sav","--save-at-validate", dest="save_at_validate", help="save the model every time of validating", action="store_true", default=False)
         parser.add_argument("-vb","--verbose", dest="verbose", help="variant's name", type=str, default=None)
+        parser.add_argument("--metrics", dest="metrics", help="metrics for evaluating the model", nargs="+", action="extend", default=["auc", "mean_mrr", "ndcg@5", "ndcg@10"])
 
         parser.add_argument("-hs", "--his_size", dest="his_size",help="history size", type=int, default=50)
         parser.add_argument("-is", "--impr_size", dest="impr_size", help="impression size for evaluating", type=int, default=20)
         parser.add_argument("-nn", "--negative-num", dest="negative_num", help="number of negatives", type=int, default=4)
         parser.add_argument("-dp", "--dropout-p", dest="dropout_p", help="dropout probability", type=float, default=0.1)
-        parser.add_argument("-lr", "--learning-rate", dest="learning_rate", help="learning rate", type=float, default=3e-6)
+        parser.add_argument("-lr", "--learning-rate", dest="learning_rate", help="learning rate", type=float, default=3e-5)
         parser.add_argument("-sch", "--scheduler", dest="scheduler", help="choose schedule scheme for optimizer", choices=["linear","none"], default="none")
         parser.add_argument("--warmup", dest="warmup", help="warmup steps of scheduler", type=float, default=0.1)
 
@@ -71,6 +72,12 @@ class Manager():
 
         parser.add_argument("-ef", "--enable-fields", dest="enable_fields", help="text fields to model", nargs="+", action="extend", choices=["title", "abs"], default=["title", "abs"])
         parser.add_argument("-eg", "--enable-gate", dest="enable_gate", help="way to gate tokens", type=str, choices=["weight", "none"], default="weight")
+
+        parser.add_argument("-ne", "--news-encoder", dest="newsEncoder", default="cnn")
+        parser.add_argument("-ue", "--user-encoder", dest="userEncoder", default="rnn")
+
+        parser.add_argument("--cnn-dim", dest="cnn_dim", default=300)
+        parser.add_argument("--rnn-dim", dest="rnn_dim", default=300)
 
         parser.add_argument("-plm", dest="plm", help="short name of pre-trained language models", type=str, default="bert")
 
@@ -240,8 +247,13 @@ class Manager():
 
         if "dev" in self.dataloaders:
             dataset_dev = MIND_Dev(self)
-            sampler_passage = Sequential_Sampler(len(dataset_dev), num_replicas=self.world_size, rank=self.rank)
-            loaders["dev"] = DataLoader(dataset_dev, batch_size=self.batch_size_encode, sampler=sampler_passage, drop_last=False)
+            sampler_dev = Sequential_Sampler(len(dataset_dev), num_replicas=self.world_size, rank=self.rank)
+            loaders["dev"] = DataLoader(dataset_dev, batch_size=self.batch_size_encode, sampler=sampler_dev, drop_last=False)
+
+        if "news" in self.dataloaders:
+            dataset_news = MIND_News(self)
+            sampler_news = Sequential_Sampler(len(dataset_news), num_replicas=self.world_size, rank=self.rank)
+            loaders["news"] = DataLoader(dataset_news, batch_size=self.batch_size_encode, sampler=sampler_news, drop_last=False)
 
         return loaders
 
@@ -327,15 +339,12 @@ class Manager():
                 if k not in self.exclude_hparams:
                     d[k] = v
 
-            # mardown_format_metric =  "|".join([str(round(metrics["MRR@10"], 4)), str(round(metrics["Recall@100"], 4))]) + "|"
             line = "{} : {}\n{}\n\n".format(model_name, str(d), str(metrics))
             f.write(line)
-            # f.write(mardown_format_metric + "\n\n")
 
-            task="Rerank" if "rerank" in self.dataloaders else "Retrieval"
             try:
                 from data.email import email,password
-                subject = f"[PR] {model_name}-{task}"
+                subject = f"[PR] {model_name}"
                 email_server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
                 email_server.login(email, password)
                 message = "Subject: {}\n\n{}".format(subject, line)
@@ -345,7 +354,7 @@ class Manager():
                 logger.info("error in connecting SMTP")
 
 
-    def _train(self, model, loaders, validate_step, hold_step, optimizer, scheduler, clip_grad_norm=0, save_at_validate=False):
+    def _train(self, model, loaders, validate_step, hold_step, optimizer, scheduler, save_at_validate=False):
         total_steps = 1
         loader_train = loaders["train"]
 
@@ -369,9 +378,6 @@ class Manager():
                 loss = model(x)
                 epoch_loss += float(loss)
                 loss.backward()
-
-                if clip_grad_norm > 0:
-                    nn.utils.clip_grad_norm_(model.parameters(), max_norm=clip_grad_norm)
 
                 optimizer.step()
                 if scheduler:
@@ -418,9 +424,9 @@ class Manager():
             os.makedirs("data/ckpts/{}".format(model.module.name if isinstance(model, torch.nn.parallel.DistributedDataParallel) else model.name), exist_ok=True)
 
         if isinstance(model, torch.nn.parallel.DistributedDataParallel):
-            optimizer, scheduler = model.module._get_optimizer(self, len(loaders["train"]))
+            optimizer, scheduler = model.module.get_optimizer(self, len(loaders["train"]))
         else:
-            optimizer, scheduler = model._get_optimizer(self, len(loaders["train"]))
+            optimizer, scheduler = model.get_optimizer(self, len(loaders["train"]))
 
         self.load(model)
 
@@ -438,7 +444,7 @@ class Manager():
         else:
             hold_step = int(self.hold_step)
 
-        result = self._train(model, loaders, validate_step, hold_step, optimizer, scheduler=scheduler, clip_grad_norm=self.clip_grad_norm, save_at_validate=self.save_at_validate)
+        result = self._train(model, loaders, validate_step, hold_step, optimizer, scheduler=scheduler, save_at_validate=self.save_at_validate)
 
         if self.rank in [-1,0]:
             logger.info("Best result: {}".format(result))
