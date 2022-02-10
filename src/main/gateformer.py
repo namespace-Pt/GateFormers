@@ -1,6 +1,6 @@
 import torch.multiprocessing as mp
 from utils.manager import Manager
-from models.TwoTower import TwoTowerModel
+from models.GateFormer import TwoTowerGateFormer
 from torch.nn.parallel import DistributedDataParallel as DDP
 from models.modules.encoder import *
 
@@ -18,7 +18,7 @@ def main(rank, manager):
     if manager.newsEncoder == "cnn":
         newsEncoder = CnnNewsEncoder(manager)
     elif manager.newsEncoder == "bert":
-        newsEncoder = AllBertNewsEncoder(manager)
+        newsEncoder = GatedBertNewsEncoder(manager)
     elif manager.newsEncoder == "tfm":
         newsEncoder = TfmNewsEncoder(manager)
     if manager.userEncoder == "rnn":
@@ -32,7 +32,7 @@ def main(rank, manager):
     elif manager.userEncoder == "tfm":
         userEncoder = TfmUserEncoder(manager)
 
-    model = TwoTowerModel(manager, newsEncoder, userEncoder).to(manager.device)
+    model = TwoTowerGateFormer(manager, newsEncoder, userEncoder).to(manager.device)
 
     if manager.mode == 'train':
         if manager.world_size > 1:

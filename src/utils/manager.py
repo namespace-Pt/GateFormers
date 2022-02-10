@@ -57,7 +57,7 @@ class Manager():
         parser.add_argument("-is", "--impr_size", dest="impr_size", help="impression size for evaluating", type=int, default=20)
         parser.add_argument("-nn", "--negative-num", dest="negative_num", help="number of negatives", type=int, default=4)
         parser.add_argument("-dp", "--dropout-p", dest="dropout_p", help="dropout probability", type=float, default=0.1)
-        parser.add_argument("-lr", "--learning-rate", dest="learning_rate", help="learning rate", type=float, default=3e-5)
+        parser.add_argument("-lr", "--learning-rate", dest="learning_rate", help="learning rate", type=float, default=1e-5)
         parser.add_argument("-sch", "--scheduler", dest="scheduler", help="choose schedule scheme for optimizer", choices=["linear","none"], default="none")
         parser.add_argument("--warmup", dest="warmup", help="warmup steps of scheduler", type=float, default=0.1)
 
@@ -77,6 +77,8 @@ class Manager():
         parser.add_argument("-ue", "--user-encoder", dest="userEncoder", default="rnn")
 
         parser.add_argument("-hd", "--hidden-dim", dest="hidden_dim", type=int, default=768)
+        parser.add_argument("-ged", "--gate-embedding-dim", dest="gate_embedding_dim", type=int, default=768)
+        parser.add_argument("-ghd", "--gate-hidden-dim", dest="gate_hidden_dim", type=int, default=768)
         # parser.add_argument("--cnn-dim", dest="cnn_dim", type=int, default=300)
         # parser.add_argument("--rnn-dim", dest="rnn_dim", type=int, default=300)
         parser.add_argument("-tfmd", "--transformer-dim", dest="tfm_dim", help="hidden dimension of transformer model", type=int, default=768)
@@ -165,10 +167,14 @@ class Manager():
                 "punctuations": {},
             },
         }
+        vocab_size_map = {
+            "bert": 30522
+        }
 
         self.plm_dir = os.path.join(self.data_root, "PLM", self.plm)
         self.plm_dim = plm_map_dimension[self.plm]
         self.special_token_ids = plm_special_token_id_map[self.plm]
+        self.vocab_size = vocab_size_map[self.plm]
         self.news_nums = {
             "MINDdemo_train": 51282,
             "MINDdemo_dev": 42416,

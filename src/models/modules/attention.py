@@ -3,6 +3,7 @@ import torch
 from torch import _softmax_backward_data, nn
 
 
+
 def scaled_dp_attention(query, key, value, attn_mask=None, return_prob=False):
     """ calculate scaled attended output of values
     Args:
@@ -33,42 +34,24 @@ def scaled_dp_attention(query, key, value, attn_mask=None, return_prob=False):
         return attn_output
 
 
-def get_attn_mask(attn_mask):
-    """
-    extend the attention mask
-    Args:
-        attn_mask: [batch_size, *]
-    Returns:
-        attn_mask: [batch_size, 1, *, *]
-    """
-    if attn_mask is None:
-        return None
-
-    assert attn_mask.dim() == 2
-
-    extended_attn_mask = attn_mask.unsqueeze(1).unsqueeze(2)
-    extended_attn_mask2 = extended_attn_mask.squeeze(-2).unsqueeze(-1)
-
-    attn_mask = extended_attn_mask * extended_attn_mask2
-
-    return attn_mask
-
-
-def extend_attention_mask(encoder_attention_mask):
+def extend_attention_mask(attention_mask, reverse=True):
     """
     Args:
-        encoder_attention_mask (`torch.Tensor`): An attention mask.
+        attention_mask (`torch.Tensor`): An attention mask.
     Returns:
         `torch.Tensor`: The inverted attention mask.
     """
-    if encoder_attention_mask.dim() == 3:
-        encoder_extended_attention_mask = encoder_attention_mask[:, None, :, :]
-    if encoder_attention_mask.dim() == 2:
-        encoder_extended_attention_mask = encoder_attention_mask[:, None, None, :]
+    if attention_mask.dim() == 2:
+        extended_attention_mask = attention_mask[:, None, None, :]
+    elif attention_mask.dim() == 3:
+        extended_attention_mask = attention_mask[:, None, :, :]
+    else:
+        raise NotImplementedError
 
-    encoder_extended_attention_mask = (1.0 - encoder_extended_attention_mask) * -1e5
+    if reverse:
+        extended_attention_mask = (1.0 - extended_attention_mask) * -1e5
 
-    return encoder_extended_attention_mask
+    return extended_attention_mask
 
 
 
@@ -124,8 +107,6 @@ class TFMSelfAttention(nn.Module):
         attention_mask=None,
     ):
         # broadcast attention masks
-        if attention_mask.dim() == 2:
-            attention_mask = attention_mask[:, None, :, None]
         query_layer = self.transpose_for_scores(self.query(hidden_states))
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
@@ -220,6 +201,7 @@ class TFMLayer(nn.Module):
         hidden_states,
         attention_mask=None,
     ):
+        attention_mask = extend_attention_mask(attention_mask, reverse=False)
         attention_output = self.attention(hidden_states, attention_mask)
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)

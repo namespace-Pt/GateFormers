@@ -1,0 +1,71 @@
+import torch
+from .BaseModel import TwoTowerBaseModel
+
+
+
+class TwoTowerGateFormer(TwoTowerBaseModel):
+    def __init__(self, manager, newsEncoder, userEncoder, weighter):
+        name = "-".join([type(self).__name__, newsEncoder.name, weighter.name, manager.k, userEncoder.name])
+        super().__init__(manager, name)
+
+        self.newsEncoder = newsEncoder
+        self.userEncoder = userEncoder
+        self.weighter = weighter
+        self.k = manager.k
+
+
+    def _compute_gate(self, token_id, attn_mask, gate_mask, token_weight):
+        """ gating by the weight of each token
+
+        Returns:
+            gated_token_ids: [B, K]
+            gated_attn_masks: [B, K]
+            gated_token_weight: [B, K]
+        """
+        keep_k_modifier = self.keep_k_modifier * (gate_mask.sum(dim=-1, keepdim=True) < self.k)
+        pad_pos = ~((gate_mask + keep_k_modifier).bool())   # B, L
+
+        token_weight = token_weight.masked_fill(pad_pos, -float('inf'))
+        gated_token_weight, gated_token_idx = token_weight.topk(self.gate_k)
+        gated_token_weight = torch.softmax(gated_token_weight, dim=-1) * gated_token_weight
+        gated_token_id = token_id.gather(dim=-1, index=gated_token_idx)
+        gated_attn_mask = attn_mask.gather(dim=-1, index=gated_token_idx)
+        # gated_gate_mask = gate_mask.gather(dim=-1, index=gated_token_idx)
+
+        return (gated_token_weight, gated_token_id, gated_attn_mask)
+
+
+    def _encode_news(self, x, cdd=True):
+        if cdd:
+            token_id = x["cdd_token_id"].to(self.device)
+            attn_mask = x['cdd_attn_mask'].to(self.device)
+            gate_mask = x['cdd_gate_mask'].to(self.device)
+        else:
+            token_id = x["his_token_id"].to(self.device)
+            attn_mask = x["his_attn_mask"].to(self.device)
+            gate_mask = x['his_gate_mask'].to(self.device)
+
+        token_weight = self.weighter(token_id, attn_mask)
+        gated_token_id, gated_attn_mask, gated_token_weight = self._compute_gate(token_id, attn_mask, gate_mask, token_weight)
+        news_token_embedding, news_embedding = self.newsEncoder(gated_token_id, gated_attn_mask, gated_token_weight)
+        return news_token_embedding, news_embedding
+
+
+    def _encode_user(self, his_news_embedding, his_mask):
+        user_embedding = self.userEncoder(his_news_embedding, his_mask=his_mask)
+        return user_embedding
+
+
+    def forward(self, x):
+        _, cdd_news_embedding = self._encode_news(x)
+        _, his_news_embedding = self._encode_news(x, cdd=False)
+
+        user_embedding = self._encode_user(his_news_embedding, his_mask=x['his_mask'].to(self.device))
+        logits = self._compute_logits(cdd_news_embedding, user_embedding)
+
+        labels = x["label"].to(self.device)
+        loss = self.crossEntropy(logits, labels)
+        return loss
+
+
+
