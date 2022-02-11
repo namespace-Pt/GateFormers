@@ -31,22 +31,26 @@ class AllBertWeighter(BaseWeighter):
         self.bert.pooler = None
 
 
-    def forward(self, token_ids, attn_masks):
+    def forward(self, token_id, attn_mask):
         """
         Args:
-            token_ids: [B, L]
-            attn_masks: [B, L]
+            token_id: [B, L]
+            attn_mask: [B, L]
 
         Returns:
             weights: [B, L]
         """
-        bert_embeddings = self.bert(token_ids, attention_mask=attn_masks)[0]    # B, L, D
-        weights = self._compute_weight(bert_embeddings)
+        original_shape = token_id.shape
+        token_id = token_id.view(-1, original_shape[-1])
+        attn_mask = attn_mask.view(-1, original_shape[-1])
+
+        bert_embedding = self.bert(token_id, attention_mask=attn_mask)[0].view(*original_shape, -1)    # B, L, D
+        weights = self._compute_weight(bert_embedding)
         return weights
 
 
 
-class CNNWeighter(BaseWeighter):
+class CnnWeighter(BaseWeighter):
     def __init__(self, manager):
         super().__init__(manager)
 
@@ -63,23 +67,27 @@ class CNNWeighter(BaseWeighter):
         nn.init.xavier_normal_(self.cnn[0].weight)
 
 
-    def forward(self, token_ids, attn_masks):
+    def forward(self, token_id, attn_mask):
         """
         Args:
-            token_ids: [B, L]
-            attn_masks: [B, L]
+            token_id: [B, L]
+            attn_mask: [B, L]
 
         Returns:
             weights: [B, L]
         """
-        embeddings = self.embedding(token_ids)    # B, L, D
-        conv_embeddings = self.cnn(embeddings.transpose(-1, -2)).transpose(-1, -2)
-        weights = self._compute_weight(conv_embeddings)
-        return weights
+        original_shape = token_id.shape
+        token_id = token_id.view(-1, original_shape[-1])
+
+        token_embedding = self.embedding(token_id)
+        cnn_input = token_embedding.transpose(-1, -2)
+        conv_embedding = self.cnn(cnn_input).transpose(-1, -2).view(*original_shape, -1)
+        weight = self._compute_weight(conv_embedding)
+        return weight
 
 
 
-class TFMWeighter(BaseWeighter):
+class TfmWeighter(BaseWeighter):
     def __init__(self, manager):
         super().__init__(manager)
 
@@ -87,10 +95,14 @@ class TFMWeighter(BaseWeighter):
         self.tfm = TFMLayer(manager)
 
 
-    def forward(self, token_ids, attn_masks):
-        embeddings = self.embedding(token_ids)    # B, L, D
-        tfm_embeddings = self.tfm(embeddings, attention_masks=attn_masks)
-        weights = self._compute_weight(tfm_embeddings)
+    def forward(self, token_id, attn_mask):
+        original_shape = token_id.shape
+        token_id = token_id.view(-1, original_shape[-1])
+        attn_mask = attn_mask.view(-1, original_shape[-1])
+
+        token_embedding = self.embedding(token_id)
+        tfm_embedding = self.tfm(token_embedding, attention_mask=attn_mask).view(*original_shape, -1)
+        weights = self._compute_weight(tfm_embedding)
         return weights
 
 
@@ -100,7 +112,7 @@ class FirstWeighter(nn.Module):
         super().__init__()
         self.name = "First"
 
-    def forward(self, token_ids, attn_masks):
-        weights = torch.arange(1, 0, -1 / token_ids.size(-1), dtype=torch.float, device=token_ids.device)
-        weights = weights.unsqueeze(0).expand(token_ids.shape)
+    def forward(self, token_id, attn_mask):
+        weights = torch.arange(1, 0, -1 / token_id.size(-1), dtype=torch.float, device=token_id.device)
+        weights = weights.unsqueeze(0).expand(token_id.shape)
         return weights

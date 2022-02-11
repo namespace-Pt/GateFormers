@@ -47,7 +47,12 @@ def main(rank, manager):
 
 
 if __name__ == "__main__":
-    manager = Manager()
+    config = {
+        "enable_fields": ["title"],
+        "newsEncoder": "bert",
+        "userEncoder": "rnn",
+    }
+    manager = Manager(config)
 
     if manager.world_size > 1:
         mp.spawn(

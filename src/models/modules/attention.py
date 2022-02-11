@@ -115,10 +115,7 @@ class TFMSelfAttention(nn.Module):
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
 
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-        if attention_mask is not None:
-            attention_probs = XSoftmax.apply(attention_scores, attention_mask, -1)
-        else:
-            attention_probs = torch.softmax(attention_scores, dim=-1)
+        attention_probs = torch.softmax(attention_scores + attention_mask, dim=-1)
 
         attention_probs = self.dropout(attention_probs)
 
@@ -201,7 +198,7 @@ class TFMLayer(nn.Module):
         hidden_states,
         attention_mask=None,
     ):
-        attention_mask = extend_attention_mask(attention_mask, reverse=False)
+        attention_mask = extend_attention_mask(attention_mask)
         attention_output = self.attention(hidden_states, attention_mask)
         intermediate_output = self.intermediate(attention_output)
         layer_output = self.output(intermediate_output, attention_output)

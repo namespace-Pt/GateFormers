@@ -3,6 +3,7 @@ from utils.manager import Manager
 from models.GateFormer import TwoTowerGateFormer
 from torch.nn.parallel import DistributedDataParallel as DDP
 from models.modules.encoder import *
+from models.modules.weighter import *
 
 
 def main(rank, manager):
@@ -21,6 +22,7 @@ def main(rank, manager):
         newsEncoder = GatedBertNewsEncoder(manager)
     elif manager.newsEncoder == "tfm":
         newsEncoder = TfmNewsEncoder(manager)
+
     if manager.userEncoder == "rnn":
         userEncoder = RnnUserEncoder(manager)
     elif manager.userEncoder == "sum":
@@ -32,7 +34,14 @@ def main(rank, manager):
     elif manager.userEncoder == "tfm":
         userEncoder = TfmUserEncoder(manager)
 
-    model = TwoTowerGateFormer(manager, newsEncoder, userEncoder).to(manager.device)
+    if manager.weighter == "cnn":
+        weighter = CnnWeighter(manager)
+    elif manager.weighter == "tfm":
+        weighter = TfmWeighter(manager)
+    elif manager.weighter == "bert":
+        weighter = AllBertWeighter(manager)
+
+    model = TwoTowerGateFormer(manager, newsEncoder, userEncoder, weighter).to(manager.device)
 
     if manager.mode == 'train':
         if manager.world_size > 1:
@@ -43,11 +52,22 @@ def main(rank, manager):
         # if isinstance(model, DDP):
         #     model.module.dev(manager, loaders, load=True, log=True)
         # else:
-            model.dev(manager, loaders, load=True, log=True)
+        model.dev(manager, loaders, load=True, log=True)
+
+    elif manager.mode == "inspect":
+        manager.load(model)
+        model.inspect(manager, loaders)
 
 
 if __name__ == "__main__":
-    manager = Manager()
+    config = {
+        "enable_gate": "weight",
+        "enable_fields": ["title"],
+        "newsEncoder": "bert",
+        "userEncoder": "rnn",
+        "weighter": "cnn"
+    }
+    manager = Manager(config)
 
     if manager.world_size > 1:
         mp.spawn(

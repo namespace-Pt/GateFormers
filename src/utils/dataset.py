@@ -68,21 +68,29 @@ class MIND(Dataset):
             token_ids = [[] for _ in range(news_num)]
             self.sequence_length = manager.sequence_length
 
+            start_idx = 0
             if "title" in self.enable_fields:
                 title_token_ids = load_pickle(os.path.join(self.news_cache_dir, "title_token_ids.pkl"))
                 for i, token_id in enumerate(title_token_ids, start=1):
-                    token_id = token_id[:self.title_length]
+                    token_id = token_id[start_idx: start_idx + self.title_length]
                     # use [SEP] to separate title and abstract
-                    token_id[-1] = sep_token_id
-                    token_ids[i].extend(token_id.copy())
+                    if len(token_id) > 2 - start_idx:
+                        token_id[-1] = sep_token_id
+                        token_ids[i].extend(token_id.copy())
+                if start_idx == 0:
+                    start_idx += 1
 
             if "abs" in self.enable_fields:
                 abs_token_ids = load_pickle(os.path.join(self.news_cache_dir, "abs_token_ids.pkl"))
                 for i, token_id in enumerate(abs_token_ids, start=1):
-                    token_id = token_id[:self.abs_length]
+                    # offset to remove an extra [CLS]
+                    token_id = token_id[start_idx: self.abs_length + start_idx]
                     # use [SEP] to separate abs and abstract
-                    token_id[-1] = sep_token_id
-                    token_ids[i].extend(token_id)
+                    if len(token_id) > 2 - start_idx:
+                        token_id[-1] = sep_token_id
+                        token_ids[i].extend(token_id.copy())
+                if start_idx == 0:
+                    start_idx += 1
 
 
             attn_masks = np.zeros((news_num, self.sequence_length), dtype=np.int64)

@@ -9,7 +9,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 from tqdm import tqdm
 from collections import defaultdict
-from transformers import get_linear_schedule_with_warmup
+from transformers import get_linear_schedule_with_warmup, AutoTokenizer
 from utils.util import pack_results, compute_metrics
 
 
@@ -185,3 +185,26 @@ class TwoTowerBaseModel(BaseModel):
             dist.barrier(device_ids=[self.device])
 
         return metrics
+
+
+    @torch.no_grad()
+    def inspect(self, manager, loaders):
+        assert hasattr(self, "weighter")
+
+        tokenizer = AutoTokenizer.from_pretrained(manager.plm_dir)
+        loader_news = loaders["news"]
+        for i, x in enumerate(loader_news):
+            token_ids = x["cdd_token_id"].to(self.device)
+            attn_mask = x['cdd_attn_mask'].to(self.device)
+            gate_mask = x['cdd_gate_mask'].to(self.device)
+            token_weight = self.weighter(token_ids, attn_mask)
+            gated_token_ids, gated_attn_masks, gated_token_weights = self._compute_gate(token_ids, attn_mask, gate_mask, token_weight)
+            for token_id, gated_token_id, gated_token_weight in zip(token_ids.tolist(), gated_token_ids.tolist(), gated_token_weights.tolist()):
+                token = tokenizer.convert_ids_to_tokens(token_id)
+                gated_token = tokenizer.convert_ids_to_tokens(gated_token_id)
+                print("-"*10 + "news text" + "-"*10)
+                print(tokenizer.decode(token_id))
+                print("-"*10 + "gated tokens" + "-"*10)
+                line = "; ".join([f"{i} ({round(p, 3)})" for i, p in zip(gated_token, gated_token_weight)])
+                print(line)
+                input()

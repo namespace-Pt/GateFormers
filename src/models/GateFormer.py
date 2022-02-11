@@ -5,13 +5,17 @@ from .BaseModel import TwoTowerBaseModel
 
 class TwoTowerGateFormer(TwoTowerBaseModel):
     def __init__(self, manager, newsEncoder, userEncoder, weighter):
-        name = "-".join([type(self).__name__, newsEncoder.name, weighter.name, manager.k, userEncoder.name])
+        name = "-".join([type(self).__name__, newsEncoder.name, userEncoder.name, weighter.name, str(manager.k)])
         super().__init__(manager, name)
 
         self.newsEncoder = newsEncoder
         self.userEncoder = userEncoder
         self.weighter = weighter
         self.k = manager.k
+
+        keep_k_modifier = torch.zeros(manager.sequence_length)
+        keep_k_modifier[1:self.k + 1] = 1
+        self.register_buffer('keep_k_modifier', keep_k_modifier, persistent=False)
 
 
     def _compute_gate(self, token_id, attn_mask, gate_mask, token_weight):
@@ -26,13 +30,13 @@ class TwoTowerGateFormer(TwoTowerBaseModel):
         pad_pos = ~((gate_mask + keep_k_modifier).bool())   # B, L
 
         token_weight = token_weight.masked_fill(pad_pos, -float('inf'))
-        gated_token_weight, gated_token_idx = token_weight.topk(self.gate_k)
+        gated_token_weight, gated_token_idx = token_weight.topk(self.k)
         gated_token_weight = torch.softmax(gated_token_weight, dim=-1) * gated_token_weight
         gated_token_id = token_id.gather(dim=-1, index=gated_token_idx)
         gated_attn_mask = attn_mask.gather(dim=-1, index=gated_token_idx)
         # gated_gate_mask = gate_mask.gather(dim=-1, index=gated_token_idx)
 
-        return (gated_token_weight, gated_token_id, gated_attn_mask)
+        return gated_token_id, gated_attn_mask, gated_token_weight
 
 
     def _encode_news(self, x, cdd=True):
