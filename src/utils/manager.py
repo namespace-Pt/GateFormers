@@ -44,7 +44,7 @@ class Manager():
         parser.add_argument("-d", "--device", dest="device", help="gpu index, -1 for cpu", type=int, default=0)
         parser.add_argument("-bs", "--batch-size", dest="batch_size", help="batch size in training", type=int, default=32)
         parser.add_argument("-bse", "--batch-size-encode", dest="batch_size_encode", help="batch size in encoding", type=int, default=200)
-        parser.add_argument("-dl", "--dataloaders", dest="dataloaders", help="training dataloaders", nargs="+", action="extend", choices=["train", "dev", "news", "behaviors"], default=["train", "dev", "news"])
+        # parser.add_argument("-dl", "--dataloaders", dest="dataloaders", help="training dataloaders", nargs="+", action="extend", choices=["train", "dev", "news", "behaviors"], default=["train", "dev", "news"])
 
         parser.add_argument("-ck","--checkpoint", dest="checkpoint", help="load the model from checkpoint before training/evaluating", type=str, default="none")
         parser.add_argument("-vs","--validate-step", dest="validate_step", help="evaluate and save the model every step", type=str, default="0")
@@ -114,9 +114,8 @@ class Manager():
         if args["debug"]:
             args["hold_step"] = "0"
             args["validate_step"] = "2"
-        # remove train dataloader if in validation mode
+        # default to load best checkpoint
         if args["mode"] != "train":
-            args["dataloaders"] = [x for x in args["dataloaders"] if x != "train"]
             if args["checkpoint"] == "none":
                 args["checkpoint"] = "best"
         sequence_length = 0
@@ -172,6 +171,11 @@ class Manager():
         vocab_size_map = {
             "bert": 30522
         }
+        dataloader_map = {
+            "train": ["train", "dev", "news"],
+            "dev": ["dev", "news"],
+            "inspect": ["news"]
+        }
 
         self.plm_dir = os.path.join(self.data_root, "PLM", self.plm)
         self.plm_dim = plm_map_dimension[self.plm]
@@ -186,9 +190,10 @@ class Manager():
             "MINDlarge_dev": 72023,
             "MINDlarge_test": 120961,
         }
+        self.dataloaders = dataloader_map[self.mode]
 
         self.distributed = self.world_size > 1
-        self.exclude_hparams = set(["metrics", "plm_dim", "plm_dir", "data_root", "cache_root", "distributed", "exclude_hparams", "rank", "epochs", "mode", "debug", "special_token_ids", "validate_step", "hold_step", "exclude_hparams", "device", "save_at_validate", "preprocess_threads", "base_rank", "world_size", "max_title_length", "max_abs_length"])
+        self.exclude_hparams = set(["news_nums", "vocab_size_map", "metrics", "plm_dim", "plm_dir", "data_root", "cache_root", "distributed", "exclude_hparams", "rank", "epochs", "mode", "debug", "special_token_ids", "validate_step", "hold_step", "exclude_hparams", "device", "save_at_validate", "preprocess_threads", "base_rank", "max_title_length", "max_abs_length"])
 
         logger.info("Hyper Parameters are:\n{}\n".format({k:v for k,v in args.items() if k[0:2] != "__" and k not in self.exclude_hparams}))
 

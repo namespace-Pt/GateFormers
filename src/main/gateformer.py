@@ -65,7 +65,8 @@ if __name__ == "__main__":
         "enable_fields": ["title"],
         "newsEncoder": "bert",
         "userEncoder": "rnn",
-        "weighter": "cnn"
+        "weighter": "cnn",
+        "validate_step": "0.5e",
     }
     manager = Manager(config)
 
