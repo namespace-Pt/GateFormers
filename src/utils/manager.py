@@ -106,10 +106,6 @@ class Manager():
 
         if args['device'] == -1:
             args['device'] = "cpu"
-        if "triple" in args["dataloaders"]:
-            args["enable_hard_negative"] = "triple"
-            args["enable_inbatch_negative"] = False
-            args["hard_negative_num"] = 1
         # used for checking
         if args["debug"]:
             args["hold_step"] = "0"

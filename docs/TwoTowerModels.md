@@ -7,4 +7,4 @@
 ## GateFormer
 |News Encoder|User Encoder|Weighter|enable fields|sequence length|k|history length|hidden dim|batch size|learning rate|AUC|MRR|
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-|Bert|GRU|CNN|title|32|10|50|768|64|1e-5|0.7087|0.3479|
+|Bert|GRU|CNN|title|32|10|50|768|64|1e-5|0.6987|
