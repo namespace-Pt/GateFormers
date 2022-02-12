@@ -84,6 +84,12 @@ class GatedBertNewsEncoder(BaseNewsEncoder):
         self.embeddings = plm.embeddings
         self.plm = plm.encoder
 
+        self.news_query = nn.Parameter(torch.randn((1, manager.hidden_dim), requires_grad=True))
+        nn.init.xavier_normal_(self.news_query)
+        # self.newsProject = nn.Linear(manager.hidden_dim, manager.hidden_dim)
+        # nn.init.xavier_normal_(self.newsProject.weight)
+        # self.Tanh = nn.Tanh()
+
 
     def forward(self, token_id, attn_mask, token_weight):
         original_shape = token_id.shape
@@ -95,7 +101,8 @@ class GatedBertNewsEncoder(BaseNewsEncoder):
         token_embedding = token_embedding * token_weight.unsqueeze(-1)
         extended_attn_mask = extend_attention_mask(attn_mask)
         token_embedding = self.plm(token_embedding, attention_mask=extended_attn_mask).last_hidden_state
-        news_embedding = token_embedding[:, 0].view(*original_shape[:-1], -1)
+        # we do not keep [CLS] and [SEP] after gating, so it's better to use attention pooling
+        news_embedding = scaled_dp_attention(self.news_query, token_embedding, token_embedding, attn_mask=attn_mask.unsqueeze(-2)).squeeze(dim=-2).view(*original_shape[:-1], -1)
         token_embedding = token_embedding.view(*original_shape, -1)
         return token_embedding, news_embedding
 

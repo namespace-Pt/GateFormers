@@ -31,7 +31,7 @@ class TwoTowerGateFormer(TwoTowerBaseModel):
 
         token_weight = token_weight.masked_fill(pad_pos, -float('inf'))
         gated_token_weight, gated_token_idx = token_weight.topk(self.k)
-        gated_token_weight = torch.softmax(gated_token_weight, dim=-1) * gated_token_weight
+        gated_token_weight = torch.softmax(gated_token_weight, dim=-1)
         gated_token_id = token_id.gather(dim=-1, index=gated_token_idx)
         gated_attn_mask = attn_mask.gather(dim=-1, index=gated_token_idx)
         # gated_gate_mask = gate_mask.gather(dim=-1, index=gated_token_idx)

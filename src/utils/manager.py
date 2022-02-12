@@ -137,8 +137,8 @@ class Manager():
             torch.manual_seed(seed)
             torch.cuda.manual_seed(seed)
             torch.cuda.manual_seed_all(seed)
-            # torch.backends.cudnn.deterministic = True
-            # torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = True
 
         for k,v in args.items():
             if not k.startswith("__"):
@@ -198,7 +198,7 @@ class Manager():
         set up distributed training and fix seeds
         """
         os.environ["TOKENIZERS_PARALLELISM"] = "True"
-        os.environ["TORCH_DISTRIBUTED_DEBUG"] = "OFF"
+        os.environ["TORCH_DISTRIBUTED_DEBUG"] = "INFO"
 
         if self.world_size > 1:
             os.environ["NCCL_DEBUG"] = "WARN"
@@ -278,9 +278,9 @@ class Manager():
         if isinstance(model, torch.nn.parallel.DistributedDataParallel):
             model = model.module
         if best:
-            save_path = "data/ckpts/{}/best.model".format(model.name)
+            save_path = f"data/ckpts/{model.name}/{self.scale}/best.model"
         else:
-            save_path = "data/ckpts/{}/{}.model".format(model.name, step)
+            save_path = f"data/ckpts/{model.name}/{self.scale}/{step}.model"
 
         logger.info("saving model at {}...".format(save_path))
         model_dict = model.state_dict()
@@ -311,9 +311,9 @@ class Manager():
         elif os.path.isfile(checkpoint):
             save_path = checkpoint
         elif checkpoint == "best":
-            save_path = "data/ckpts/{}/best.model".format(model.name)
+            save_path = f"data/ckpts/{model.name}/{self.scale}/best.model"
         else:
-            save_path = "data/ckpts/{}/{}.model".format(model.name, checkpoint)
+            save_path = f"data/ckpts/{model.name}/{self.scale}/{checkpoint}.model"
 
         if not os.path.exists(save_path):
             if self.rank == 0:
@@ -432,9 +432,9 @@ class Manager():
         train the model
         """
         model.train()
-        if self.rank in [-1, 0]:
+        if self.rank == 0:
             # in case the folder does not exists, create one
-            os.makedirs("data/ckpts/{}".format(model.module.name if isinstance(model, torch.nn.parallel.DistributedDataParallel) else model.name), exist_ok=True)
+            os.makedirs(f"data/ckpts/{model.module.name if isinstance(model, torch.nn.parallel.DistributedDataParallel) else model.name}/{self.scale}", exist_ok=True)
 
         if isinstance(model, torch.nn.parallel.DistributedDataParallel):
             optimizer, scheduler = model.module.get_optimizer(self, len(loaders["train"]))
