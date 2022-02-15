@@ -30,7 +30,7 @@ class MIND(Dataset):
         self.data_root = manager.data_root
 
         data_dir_name = data_dir.split("/")[-1]
-        self.news_cache_dir = os.path.join(manager.cache_root, "MIND", data_dir_name, "news")
+        self.news_cache_dir = os.path.join(manager.cache_root, "MIND", data_dir_name, "news", manager.news_cache_dir)
         if "train" in data_dir_name:
             self.behaviors_cache_dir = os.path.join(manager.cache_root, "MIND", data_dir_name, "behaviors")
         else:
@@ -278,7 +278,7 @@ class MIND_News(MIND):
 
 
 
-def tokenize_original_news(news_path, cache_dir, news_num, tokenizer, max_title_length, max_abs_length):
+def tokenize_news(news_path, cache_dir, news_num, tokenizer, max_title_length, max_abs_length):
     title_token_ids = [[]] * news_num
     abs_token_ids = [[]] * news_num
 
@@ -296,13 +296,31 @@ def tokenize_original_news(news_path, cache_dir, news_num, tokenizer, max_title_
     save_pickle(abs_token_ids, os.path.join(cache_dir, "abs_token_ids.pkl"))
 
 
+def tokenize_news_keyword(news_path, cache_dir, news_num, tokenizer, max_title_length, max_abs_length):
+    title_token_ids = [[]] * news_num
+    abs_token_ids = [[]] * news_num
+
+    with open(news_path, 'r') as f:
+        for idx, line in enumerate(tqdm(f, total=news_num, desc="Tokenizing News", ncols=80)):
+            title, abs = line.strip("\n").split("\t")
+
+            title_token_id = tokenizer.encode(title, max_length=max_title_length)
+            title_token_ids[idx] = title_token_id
+
+            abs_token_id = tokenizer.encode(abs, max_length=max_abs_length)
+            abs_token_ids[idx] = abs_token_id
+
+    save_pickle(title_token_ids, os.path.join(cache_dir, "title_token_ids.pkl"))
+    save_pickle(abs_token_ids, os.path.join(cache_dir, "abs_token_ids.pkl"))
+
+
 def cache_news(news_path, cache_dir, manager):
     news_num = int(subprocess.check_output(["wc", "-l", news_path]).decode("utf-8").split()[0])
     os.makedirs(cache_dir, exist_ok=True)
 
     # TODO: bm25, entity and keyword
     tokenizer = AutoTokenizer.from_pretrained(manager.plm_dir)
-    tokenize_original_news(news_path, cache_dir, news_num, tokenizer, manager.max_title_length, manager.max_abs_length)
+    tokenize_news(news_path, cache_dir, news_num, tokenizer, manager.max_title_length, manager.max_abs_length)
 
     if not os.path.exists(os.path.join(cache_dir, "nid2index.pkl")):
         print(f"mapping news id to news index and save at {os.path.join(cache_dir, 'nid2index.pkl')}...")

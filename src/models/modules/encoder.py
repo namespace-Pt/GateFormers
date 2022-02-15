@@ -114,7 +114,7 @@ class TfmNewsEncoder(BaseNewsEncoder):
         self.embedding_dim = manager.plm_dim
         bert = AutoModel.from_pretrained(manager.plm_dir)
         self.embedding = bert.embeddings.word_embeddings
-        self.transformer = TFMLayer(manager)
+        self.transformer = TFMLayer(manager.hidden_dim, manager.head_num, 0.1)
 
         self.news_query = nn.Parameter(torch.randn((1, manager.hidden_dim), requires_grad=True))
         nn.init.xavier_normal_(self.news_query)
@@ -242,7 +242,7 @@ class AttnUserEncoder(BaseUserEncoder):
 class TfmUserEncoder(BaseUserEncoder):
     def __init__(self, manager):
         super().__init__()
-        self.transformer = TFMLayer(manager)
+        self.transformer = TFMLayer(manager.hidden_dim, manager.head_num, 0.1)
         self.user_query = nn.Parameter(torch.randn((1, manager.hidden_dim), requires_grad=True))
         nn.init.xavier_normal_(self.user_query)
         self.userProject = nn.Linear(manager.hidden_dim, manager.hidden_dim)

@@ -83,18 +83,20 @@ class XSoftmax(torch.autograd.Function):
 
 
 class TFMSelfAttention(nn.Module):
-    def __init__(self, manager):
+    def __init__(self, hidden_dim, head_num, dropout_p):
         super().__init__()
 
-        self.num_attention_heads = manager.tfm_head_num
-        self.attention_head_size = int(manager.tfm_dim / manager.tfm_head_num)
+        self.num_attention_heads = head_num
+        self.attention_head_size = int(hidden_dim / head_num)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
+        if self.all_head_size != hidden_dim:
+            RuntimeWarning(f"Truncating given hidden dim {hidden_dim} to {self.all_head_size} so that it can be divided by head num {head_num}")
 
-        self.query = nn.Linear(manager.tfm_dim, self.all_head_size)
-        self.key = nn.Linear(manager.tfm_dim, self.all_head_size)
-        self.value = nn.Linear(manager.tfm_dim, self.all_head_size)
+        self.query = nn.Linear(hidden_dim, self.all_head_size)
+        self.key = nn.Linear(hidden_dim, self.all_head_size)
+        self.value = nn.Linear(hidden_dim, self.all_head_size)
 
-        self.dropout = nn.Dropout(manager.tfm_dropout_p)
+        self.dropout = nn.Dropout(dropout_p)
 
     def transpose_for_scores(self, x):
         new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
@@ -128,11 +130,11 @@ class TFMSelfAttention(nn.Module):
 
 
 class TFMSelfOutput(nn.Module):
-    def __init__(self, manager):
+    def __init__(self, hidden_dim, dropout_p):
         super().__init__()
-        self.dense = nn.Linear(manager.tfm_dim, manager.tfm_dim)
-        self.LayerNorm = nn.LayerNorm(manager.tfm_dim, eps=1e-12)
-        self.dropout = nn.Dropout(manager.tfm_dropout_p)
+        self.dense = nn.Linear(hidden_dim, hidden_dim)
+        self.LayerNorm = nn.LayerNorm(hidden_dim, eps=1e-12)
+        self.dropout = nn.Dropout(dropout_p)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -142,10 +144,10 @@ class TFMSelfOutput(nn.Module):
 
 
 class TFMAttention(nn.Module):
-    def __init__(self, manager):
+    def __init__(self, hidden_dim, head_num, dropout_p):
         super().__init__()
-        self.self = TFMSelfAttention(manager)
-        self.output = TFMSelfOutput(manager)
+        self.self = TFMSelfAttention(hidden_dim=hidden_dim, head_num=head_num, dropout_p=dropout_p)
+        self.output = TFMSelfOutput(hidden_dim=hidden_dim, dropout_p=dropout_p)
 
     def forward(
         self,
@@ -161,9 +163,9 @@ class TFMAttention(nn.Module):
 
 
 class TFMIntermediate(nn.Module):
-    def __init__(self, manager):
+    def __init__(self, hidden_dim):
         super().__init__()
-        self.dense = nn.Linear(manager.tfm_dim, 4 * manager.tfm_dim)
+        self.dense = nn.Linear(hidden_dim, 4 * hidden_dim)
         self.intermediate_act_fn = nn.functional.gelu
 
     def forward(self, hidden_states):
@@ -173,11 +175,11 @@ class TFMIntermediate(nn.Module):
 
 
 class TFMOutput(nn.Module):
-    def __init__(self, manager):
+    def __init__(self, hidden_dim, dropout_p):
         super().__init__()
-        self.dense = nn.Linear(4 * manager.tfm_dim, manager.tfm_dim)
-        self.LayerNorm = nn.LayerNorm(manager.tfm_dim, eps=1e-12)
-        self.dropout = nn.Dropout(manager.tfm_dropout_p)
+        self.dense = nn.Linear(4 * hidden_dim, hidden_dim)
+        self.LayerNorm = nn.LayerNorm(hidden_dim, eps=1e-12)
+        self.dropout = nn.Dropout(dropout_p)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -187,11 +189,16 @@ class TFMOutput(nn.Module):
 
 
 class TFMLayer(nn.Module):
-    def __init__(self, manager):
+    def __init__(self, hidden_dim, head_num, dropout_p):
+        """
+        hidden_dim: transformer model dimension
+        head_num: number of self attention heads
+        dropout_p: dropout probability
+        """
         super().__init__()
-        self.attention = TFMAttention(manager)
-        self.intermediate = TFMIntermediate(manager)
-        self.output = TFMOutput(manager)
+        self.attention = TFMAttention(hidden_dim=hidden_dim, head_num=head_num, dropout_p=dropout_p)
+        self.intermediate = TFMIntermediate(hidden_dim=hidden_dim)
+        self.output = TFMOutput(hidden_dim=hidden_dim, dropout_p=dropout_p)
 
     def forward(
         self,
