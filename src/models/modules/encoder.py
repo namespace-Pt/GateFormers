@@ -91,14 +91,17 @@ class GatedBertNewsEncoder(BaseNewsEncoder):
         # self.Tanh = nn.Tanh()
 
 
-    def forward(self, token_id, attn_mask, token_weight):
+    def forward(self, token_id, attn_mask, token_weight=None):
         original_shape = token_id.shape
         token_id = token_id.view(-1, original_shape[-1])
         attn_mask = attn_mask.view(-1, original_shape[-1])
-        token_weight = token_weight.view(-1, original_shape[-1])
 
         token_embedding = self.embeddings(token_id)
-        token_embedding = token_embedding * token_weight.unsqueeze(-1)
+
+        if token_weight is not None:
+            token_weight = token_weight.view(-1, original_shape[-1])
+            token_embedding = token_embedding * token_weight.unsqueeze(-1)
+
         extended_attn_mask = extend_attention_mask(attn_mask)
         token_embedding = self.plm(token_embedding, attention_mask=extended_attn_mask).last_hidden_state
         # we do not keep [CLS] and [SEP] after gating, so it's better to use attention pooling

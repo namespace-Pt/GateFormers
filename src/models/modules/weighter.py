@@ -92,7 +92,7 @@ class TfmWeighter(BaseWeighter):
         super().__init__(manager)
 
         self.embedding = nn.Embedding(manager.vocab_size, manager.gate_hidden_dim)
-        self.tfm = TFMLayer(manager)
+        self.tfm = TFMLayer(manager.hidden_dim, manager.head_num, 0.1)
 
 
     def forward(self, token_id, attn_mask):
@@ -114,5 +114,5 @@ class FirstWeighter(nn.Module):
 
     def forward(self, token_id, attn_mask):
         weights = torch.arange(1, 0, -1 / token_id.size(-1), dtype=torch.float, device=token_id.device)
-        weights = weights.unsqueeze(0).expand(token_id.shape)
+        weights = weights.expand(token_id.shape)
         return weights

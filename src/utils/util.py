@@ -1,5 +1,8 @@
+import re
 import os
+import math
 import pickle
+import logging
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -75,6 +78,19 @@ def sample_news(news, k):
         return news + [0] * (k - num), num
     else:
         return sample(news, k), k
+
+
+def tokenize(sent):
+    """ Split sentence into words
+    Args:
+        sent (str): Input sentence
+
+    Return:
+        list: word list
+    """
+    pat = re.compile(r"[-\w_]+|[.,!?;|]")
+
+    return [x for x in pat.findall(sent.lower())]
 
 
 def construct_nid2index(news_path, cache_dir):
@@ -268,3 +284,61 @@ class Sequential_Sampler:
 
     def __len__(self):
         return self.end - self.start
+
+
+
+class BM25(object):
+    """
+    compute bm25 score on the entire corpus, instead of the one limited by signal_length
+    """
+    def __init__(self, k=0.9, b=0.4):
+        self.k = k
+        self.b = b
+        self.logger = logging.getLogger("BM25")
+
+
+    def fit(self, documents):
+        """
+        build term frequencies (how many times a term occurs in one news) and document frequencies (how many documents contains a term)
+        """
+        doc_length = 0
+        doc_count = len(documents)
+
+        tfs = []
+        df = defaultdict(int)
+        for document in documents:
+            tf = defaultdict(int)
+            words = tokenize(document)
+            for word in words:
+                tf[word] += 1
+                df[word] += 1
+            tfs.append(tf)
+            doc_length += len(words)
+
+        self.tfs = tfs
+
+        idf = defaultdict(float)
+        for word, freq in df.items():
+            idf[word] = math.log((doc_count - freq + 0.5 ) / (freq + 0.5) + 1)
+
+        self.idf = idf
+        self.doc_avg_length = doc_length / doc_count
+
+
+    def __call__(self, documents):
+        self.logger.info("computing BM25 scores...")
+        if not hasattr(self, "idf"):
+            self.fit(documents)
+        sorted_documents = []
+        for tf, document in zip(self.tfs, documents):
+            score_pairs = []
+            for word, freq in tf.items():
+                # skip word such as punctuations
+                if len(word) == 1:
+                    continue
+                score = (self.idf[word] * freq * (self.k + 1)) / (freq + self.k * (1 - self.b + self.b * len(document) / self.doc_avg_length))
+                score_pairs.append((word, score))
+            score_pairs = sorted(score_pairs, key=lambda x: x[1], reverse=True)
+            sorted_document = " ".join([x[0] for x in score_pairs])
+            sorted_documents.append(sorted_document)
+        return sorted_documents

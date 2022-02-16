@@ -40,6 +40,8 @@ def main(rank, manager):
         weighter = TfmWeighter(manager)
     elif manager.weighter == "bert":
         weighter = AllBertWeighter(manager)
+    elif manager.weighter == "first":
+        weighter = FirstWeighter(manager)
 
     model = TwoTowerGateFormer(manager, newsEncoder, userEncoder, weighter).to(manager.device)
 
@@ -67,6 +69,7 @@ if __name__ == "__main__":
         "userEncoder": "rnn",
         "weighter": "cnn",
         "validate_step": "0.5e",
+        "hold_step": "1.5e",
     }
     manager = Manager(config)
 

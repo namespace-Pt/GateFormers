@@ -30,7 +30,7 @@ class MIND(Dataset):
         self.data_root = manager.data_root
 
         data_dir_name = data_dir.split("/")[-1]
-        self.news_cache_dir = os.path.join(manager.cache_root, "MIND", data_dir_name, "news", manager.news_cache_dir)
+        self.news_cache_root = os.path.join(manager.cache_root, "MIND", data_dir_name, "news")
         if "train" in data_dir_name:
             self.behaviors_cache_dir = os.path.join(manager.cache_root, "MIND", data_dir_name, "behaviors")
         else:
@@ -45,11 +45,11 @@ class MIND(Dataset):
                 setattr(self, k, v)
 
         if manager.rank == 0:
-            if not os.path.exists(os.path.join(self.news_cache_dir, "title_token_ids.pkl")):
-                news_path = os.path.join(data_dir, "news.tsv")
-                cache_news(news_path, self.news_cache_dir, manager)
+            if not os.path.exists(os.path.join(self.news_cache_root, manager.news_cache_dir, "title_token_ids.pkl")):
+                news_path = os.path.join(data_dir, manager.news_file)
+                cache_news(news_path, self.news_cache_root, manager)
             if not os.path.exists(os.path.join(self.behaviors_cache_dir, "behaviors.pkl")):
-                nid2index = load_pickle(os.path.join(self.news_cache_dir, "nid2index.pkl"))
+                nid2index = load_pickle(os.path.join(self.news_cache_root, "nid2index.pkl"))
                 cache_behaviors(os.path.join(data_dir, "behaviors.tsv"), self.behaviors_cache_dir, nid2index, manager)
 
         if manager.distributed:
@@ -70,7 +70,7 @@ class MIND(Dataset):
 
             start_idx = 0
             if "title" in self.enable_fields:
-                title_token_ids = load_pickle(os.path.join(self.news_cache_dir, "title_token_ids.pkl"))
+                title_token_ids = load_pickle(os.path.join(self.news_cache_root, manager.news_cache_dir, "title_token_ids.pkl"))
                 for i, token_id in enumerate(title_token_ids, start=1):
                     token_id = token_id[start_idx: start_idx + self.title_length]
                     # use [SEP] to separate title and abstract
@@ -81,7 +81,7 @@ class MIND(Dataset):
                     start_idx += 1
 
             if "abs" in self.enable_fields:
-                abs_token_ids = load_pickle(os.path.join(self.news_cache_dir, "abs_token_ids.pkl"))
+                abs_token_ids = load_pickle(os.path.join(self.news_cache_root, manager.news_cache_dir, "abs_token_ids.pkl"))
                 for i, token_id in enumerate(abs_token_ids, start=1):
                     # offset to remove an extra [CLS]
                     token_id = token_id[start_idx: self.abs_length + start_idx]
@@ -296,7 +296,7 @@ def tokenize_news(news_path, cache_dir, news_num, tokenizer, max_title_length, m
     save_pickle(abs_token_ids, os.path.join(cache_dir, "abs_token_ids.pkl"))
 
 
-def tokenize_news_keyword(news_path, cache_dir, news_num, tokenizer, max_title_length, max_abs_length):
+def tokenize_news_keywords(news_path, cache_dir, news_num, tokenizer, max_title_length, max_abs_length):
     title_token_ids = [[]] * news_num
     abs_token_ids = [[]] * news_num
 
@@ -314,17 +314,23 @@ def tokenize_news_keyword(news_path, cache_dir, news_num, tokenizer, max_title_l
     save_pickle(abs_token_ids, os.path.join(cache_dir, "abs_token_ids.pkl"))
 
 
-def cache_news(news_path, cache_dir, manager):
+def cache_news(news_path, news_cache_root, manager):
     news_num = int(subprocess.check_output(["wc", "-l", news_path]).decode("utf-8").split()[0])
-    os.makedirs(cache_dir, exist_ok=True)
+
+    # different news file corresponds to different cache directory
+    news_cache_dir = os.path.join(news_cache_root, manager.news_cache_dir)
+    os.makedirs(news_cache_dir, exist_ok=True)
 
     # TODO: bm25, entity and keyword
     tokenizer = AutoTokenizer.from_pretrained(manager.plm_dir)
-    tokenize_news(news_path, cache_dir, news_num, tokenizer, manager.max_title_length, manager.max_abs_length)
+    if manager.news_cache_dir == "original":
+        tokenize_news(news_path, news_cache_dir, news_num, tokenizer, manager.max_title_length, manager.max_abs_length)
+    else:
+        tokenize_news_keywords(news_path, news_cache_dir, news_num, tokenizer, manager.max_title_length, manager.max_abs_length)
 
-    if not os.path.exists(os.path.join(cache_dir, "nid2index.pkl")):
-        print(f"mapping news id to news index and save at {os.path.join(cache_dir, 'nid2index.pkl')}...")
-        construct_nid2index(news_path, cache_dir)
+    if not os.path.exists(os.path.join(news_cache_root, "nid2index.pkl")):
+        print(f"mapping news id to news index and save at {os.path.join(news_cache_root, 'nid2index.pkl')}...")
+        construct_nid2index(news_path, news_cache_root)
 
 
 def cache_behaviors(behaviors_path, cache_dir, nid2index, manager):

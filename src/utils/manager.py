@@ -70,8 +70,8 @@ class Manager():
         parser.add_argument("-mtl", "--max-title-length", dest="max_title_length", type=int, default=64)
         parser.add_argument("-mal", "--max-abs-length", dest="max_abs_length", type=int, default=128)
 
-        parser.add_argument("-ef", "--enable-fields", dest="enable_fields", help="text fields to model", nargs="+", action="extend", choices=["title", "abs"], default=[])
-        parser.add_argument("-eg", "--enable-gate", dest="enable_gate", help="way to gate tokens", type=str, choices=["weight", "none"], default="weight")
+        parser.add_argument("-ef", "--enable-fields", dest="enable_fields", help="text fields to model", nargs="+", action="extend", choices=["title", "abs"], default=["title", "abs"])
+        parser.add_argument("-eg", "--enable-gate", dest="enable_gate", help="way to gate tokens", type=str, choices=["weight", "none", "bm25", "first", "keybert", "random"], default="weight")
 
         parser.add_argument("-ne", "--news-encoder", dest="newsEncoder", default="cnn")
         parser.add_argument("-ue", "--user-encoder", dest="userEncoder", default="rnn")
@@ -123,6 +123,9 @@ class Manager():
             raise ValueError("Include at least one field!")
         else:
             args["sequence_length"] = sequence_length
+
+        if args["enable_gate"] in ["first", "bm25", "keybert", "random"]:
+            args["weighter"] = "first"
 
         if args['seed'] is not None:
             seed = args['seed']
@@ -180,6 +183,14 @@ class Manager():
             "keybert": "keybert",
             "random": "random"
         }
+        news_file_map = {
+            "none": "news.tsv",
+            "weight": "news.tsv",
+            "first": "news.tsv",
+            "bm25": "bm25.tsv",
+            "keybert": "keybert.tsv",
+            "random": "random.tsv"
+        }
 
         self.plm_dir = os.path.join(self.data_root, "PLM", self.plm)
         self.plm_dim = plm_map_dimension[self.plm]
@@ -196,6 +207,7 @@ class Manager():
         }
         self.dataloaders = dataloader_map[self.mode]
         self.news_cache_dir = news_cache_dir_map[self.enable_gate]
+        self.news_file = news_file_map[self.enable_gate]
 
         self.distributed = self.world_size > 1
         self.exclude_hparams = set(["news_nums", "vocab_size_map", "metrics", "plm_dim", "plm_dir", "data_root", "cache_root", "distributed", "exclude_hparams", "rank", "epochs", "mode", "debug", "special_token_ids", "validate_step", "hold_step", "exclude_hparams", "device", "save_at_validate", "preprocess_threads", "base_rank", "max_title_length", "max_abs_length"])
@@ -455,7 +467,7 @@ class Manager():
 
         if self.validate_step[-1] == "e":
             # validate at the end of several epochs
-            validate_step = int(len(loaders["train"]) * float(self.validate_step[:-1]))
+            validate_step = round(len(loaders["train"]) * float(self.validate_step[:-1]))
         elif self.validate_step == "0":
             # validate at the end of every epoch
             validate_step = len(loaders["train"])
