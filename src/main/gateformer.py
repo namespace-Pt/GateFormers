@@ -64,7 +64,7 @@ def main(rank, manager):
 if __name__ == "__main__":
     config = {
         "enable_gate": "weight",
-        "enable_fields": ["title"],
+        # "enable_fields": ["title"],
         "newsEncoder": "bert",
         "userEncoder": "rnn",
         "weighter": "cnn",

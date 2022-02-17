@@ -70,7 +70,7 @@ class Manager():
         parser.add_argument("-mtl", "--max-title-length", dest="max_title_length", type=int, default=64)
         parser.add_argument("-mal", "--max-abs-length", dest="max_abs_length", type=int, default=128)
 
-        parser.add_argument("-ef", "--enable-fields", dest="enable_fields", help="text fields to model", nargs="+", action="extend", choices=["title", "abs"], default=["title", "abs"])
+        parser.add_argument("-ef", "--enable-fields", dest="enable_fields", help="text fields to model", nargs="+", action="extend", choices=["title", "abs"], default=[])
         parser.add_argument("-eg", "--enable-gate", dest="enable_gate", help="way to gate tokens", type=str, choices=["weight", "none", "bm25", "first", "keybert", "random"], default="weight")
 
         parser.add_argument("-ne", "--news-encoder", dest="newsEncoder", default="cnn")
@@ -80,11 +80,7 @@ class Manager():
         parser.add_argument("-hd", "--hidden-dim", dest="hidden_dim", type=int, default=768)
         parser.add_argument("-ged", "--gate-embedding-dim", dest="gate_embedding_dim", type=int, default=768)
         parser.add_argument("-ghd", "--gate-hidden-dim", dest="gate_hidden_dim", type=int, default=768)
-        # parser.add_argument("--cnn-dim", dest="cnn_dim", type=int, default=300)
-        # parser.add_argument("--rnn-dim", dest="rnn_dim", type=int, default=300)
-        parser.add_argument("-tfmd", "--transformer-dim", dest="tfm_dim", help="hidden dimension of transformer model", type=int, default=768)
-        parser.add_argument("-tfmh", "--transformer-head-num", dest="tfm_head_num", help="attention head number of tranformer model", type=int, default=12)
-        parser.add_argument("-tfmp", "--transformer-dropout-p", dest="tfm_dropout_p", help="dropout probability", type=float, default=0.1)
+        parser.add_argument("-hn", "--head-num", dest="head_num", help="attention head number of tranformer model", type=int, default=12)
 
         parser.add_argument("-k", dest="k", help="gate number", type=int, default=4)
 
