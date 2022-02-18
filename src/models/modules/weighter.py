@@ -113,6 +113,4 @@ class FirstWeighter(nn.Module):
         self.name = "First"
 
     def forward(self, token_id, attn_mask):
-        weights = torch.arange(1, 0, -1 / token_id.size(-1), dtype=torch.float, device=token_id.device)
-        weights = weights.expand(token_id.shape)
-        return weights
+        return None

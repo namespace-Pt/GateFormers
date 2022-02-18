@@ -18,14 +18,12 @@
 
 
 |Bert|GRU|CNN|title, abs|96|10|50|768|64|1e-5|0.7003|0.2948|
-|Bert|GRU|TFM|title, abs|96|10|50|768|64|1e-5|||
 |Bert|GRU|First|title, abs|96|10|50|768|64|1e-5|||
 |Bert|GRU|BM25|title, abs|96|10|50|768|64|1e-5|||
 |Bert|GRU|KeyBert|title, abs|96|10|50|768|64|1e-5|||
 
 
 |Bert|GRU|CNN|title|32|8|50|768|64|1e-5|0.7039|0.2994|
-|Bert|GRU|TFM|title|32|8|50|768|64|1e-5|||
 |Bert|GRU|First|title|32|8|50|768|64|1e-5|||
 |Bert|GRU|BM25|title|32|8|50|768|64|1e-5|||
 |Bert|GRU|KeyBert|title|32|8|50|768|64|1e-5|||
