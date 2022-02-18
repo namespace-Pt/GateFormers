@@ -31,10 +31,20 @@ class TwoTowerGateFormer(TwoTowerBaseModel):
             pad_pos = ~((gate_mask + keep_k_modifier).bool())   # B, L
             token_weight = token_weight.masked_fill(pad_pos, -float('inf'))
 
-            gated_token_weight, gated_token_idx = token_weight.topk(self.k)
+            gated_token_weight, gated_token_idx = token_weight.topk(self.k - 1)
             gated_token_weight = torch.softmax(gated_token_weight, dim=-1)
             gated_token_id = token_id.gather(dim=-1, index=gated_token_idx)
             gated_attn_mask = attn_mask.gather(dim=-1, index=gated_token_idx)
+
+            if token_id.dim() == 2:
+                gated_token_id = torch.cat([token_id[:, [0]], gated_token_id], dim=-1)
+                gated_attn_mask = torch.cat([attn_mask[:, [0]], gated_attn_mask], dim=-1)
+                gated_token_weight = torch.cat([torch.ones(*token_id.shape[:-1], 1, device=self.device), gated_token_weight], dim=-1)
+            elif token_id.dim() == 2:
+                gated_token_id = torch.cat([token_id[:, :, [0]], gated_token_id], dim=-1)
+                gated_attn_mask = torch.cat([attn_mask[:, :, [0]], gated_attn_mask], dim=-1)
+                gated_token_weight = torch.cat([torch.ones(*token_id.shape[:-1], 1, device=self.device), gated_token_weight], dim=-1)
+
             # gated_gate_mask = gate_mask.gather(dim=-1, index=gated_token_idx)
 
         # heuristic gate
