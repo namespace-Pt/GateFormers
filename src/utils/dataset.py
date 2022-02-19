@@ -104,11 +104,14 @@ class MIND(Dataset):
                 attn_masks[i][:s_len] = 1
                 if self.enable_gate == "weight":
                     # deduplicate and remove punctuations and remove special token ids
-                    token_set = set()
+                    # token_set = set()
+                    # for j, x in enumerate(token_id):
+                    #     if x not in token_set and x != cls_token_id and x != sep_token_id and x not in punc_token_ids:
+                    #         gate_masks[i, j] = 1
+                    #         token_set.add(x)
                     for j, x in enumerate(token_id):
-                        if x not in token_set and x != cls_token_id and x != sep_token_id and x not in punc_token_ids:
+                        if x != cls_token_id and x != sep_token_id and x not in punc_token_ids:
                             gate_masks[i, j] = 1
-                            token_set.add(x)
 
             self.token_ids = np.asarray(token_ids, dtype=np.int64)
             self.attn_masks = np.asarray(attn_masks, dtype=np.int64)

@@ -15,8 +15,6 @@
 |Bert|GRU|TFM|title|32|4|50|768|64|1e-5|0.6909|0.2908|
 |Bert|GRU|First|title|32|4|50|768|64|1e-5|0.6859|0.2907|
 |Bert|GRU|BM25|title|32|4|50|768|64|1e-5|0.6882|0.2874|
-
-
 |Bert|GRU|CNN|title, abs|96|10|50|768|64|1e-5|0.7003|0.2948|
 |Bert|GRU|First|title, abs|96|10|50|768|64|1e-5|||
 |Bert|GRU|BM25|title, abs|96|10|50|768|64|1e-5|||
