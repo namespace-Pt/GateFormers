@@ -25,3 +25,16 @@
 |Bert|GRU|First|title|32|8|50|768|64|1e-5|||
 |Bert|GRU|BM25|title|32|8|50|768|64|1e-5|||
 |Bert|GRU|KeyBert|title|32|8|50|768|64|1e-5|||
+
+|k|gate|batch size|AUC|MRR|nDCG|
+|:-:|:-:|:-:|:-:|:-:|
+|1|First|||
+|1|Cnn|||
+|2|First|||
+|2|Cnn|
+|4|First|0.6914|0.293|0.3951|
+|4|Cnn|||
+|6|First|||
+|6|Cnn|||
+|8|First|0.7015|0.3458|0.4459|
+|8|Cnn|||
