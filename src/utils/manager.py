@@ -78,8 +78,8 @@ class Manager():
         parser.add_argument("-wt", "--weighter", dest="weighter", default="cnn")
 
         parser.add_argument("-hd", "--hidden-dim", dest="hidden_dim", type=int, default=768)
-        parser.add_argument("-ged", "--gate-embedding-dim", dest="gate_embedding_dim", type=int, default=768)
-        parser.add_argument("-ghd", "--gate-hidden-dim", dest="gate_hidden_dim", type=int, default=768)
+        parser.add_argument("-ged", "--gate-embedding-dim", dest="gate_embedding_dim", type=int, default=300)
+        parser.add_argument("-ghd", "--gate-hidden-dim", dest="gate_hidden_dim", type=int, default=300)
         parser.add_argument("-hn", "--head-num", dest="head_num", help="attention head number of tranformer model", type=int, default=12)
 
         parser.add_argument("-k", dest="k", help="gate number", type=int, default=4)

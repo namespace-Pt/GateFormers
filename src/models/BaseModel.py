@@ -2,6 +2,7 @@ import os
 import math
 import torch
 import logging
+import subprocess
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
@@ -133,9 +134,9 @@ class BaseModel(nn.Module):
         preds = self._test(manager, loaders)
 
         if manager.rank == 0:
-            save_directory = "data/cache/results/{}/{}".format(self.name, manager.scale)
-            os.makedirs(save_directory, exist_ok=True)
-            save_path = save_directory + "/prediction.txt"
+            save_dir = "data/cache/results/{}/{}".format(self.name, manager.scale)
+            os.makedirs(save_dir, exist_ok=True)
+            save_path = save_dir + "/prediction.txt"
 
             index = 1
             with open(save_path, "w") as f:
@@ -145,6 +146,10 @@ class BaseModel(nn.Module):
                     line = str(index) + " [" + ",".join([str(i) for i in rank_list]) + "]" + "\n"
                     f.write(line)
                     index += 1
+            try:
+                subprocess.run(f"zip -j {os.path.join(save_dir, 'prediction.zip')} {save_path}", shell=True)
+            except:
+                self.logger.warning("Zip Command Not Found! Skip zipping.")
             self.logger.info("written to prediction at {}!".format(save_path))
 
         if manager.distributed:
