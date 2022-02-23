@@ -1,6 +1,6 @@
 import torch.multiprocessing as mp
 from utils.manager import Manager
-from models.GateFormer import TwoTowerGateFormer
+from models.GateFormer import *
 from torch.nn.parallel import DistributedDataParallel as DDP
 from models.modules.encoder import *
 from models.modules.weighter import *
@@ -43,7 +43,8 @@ def main(rank, manager):
     elif manager.weighter == "first":
         weighter = FirstWeighter(manager)
 
-    model = TwoTowerGateFormer(manager, newsEncoder, userEncoder, weighter).to(manager.device)
+    # model = TwoTowerGateFormer(manager, newsEncoder, userEncoder, weighter).to(manager.device)
+    model = UserOneTowerGateFormer(manager, newsEncoder, weighter).to(manager.device)
 
     if manager.mode == 'train':
         if manager.world_size > 1:
@@ -51,10 +52,10 @@ def main(rank, manager):
         manager.train(model, loaders)
 
     elif manager.mode == 'dev':
-        # if isinstance(model, DDP):
-        #     model.module.dev(manager, loaders, load=True, log=True)
-        # else:
         model.dev(manager, loaders, load=True, log=True)
+
+    elif manager.mode == 'test':
+        model.test(manager, loaders, load=True, log=True)
 
     elif manager.mode == "inspect":
         manager.load(model)
@@ -64,7 +65,7 @@ def main(rank, manager):
 if __name__ == "__main__":
     config = {
         "enable_gate": "weight",
-        # "enable_fields": ["title"],
+        "enable_fields": ["title"],
         "newsEncoder": "bert",
         "userEncoder": "rnn",
         "weighter": "cnn",

@@ -92,7 +92,6 @@ class MIND(Dataset):
                 if start_idx == 0:
                     start_idx += 1
 
-
             attn_masks = np.zeros((news_num, self.sequence_length), dtype=np.int64)
             if self.enable_gate == "weight":
                 gate_masks = np.zeros((news_num, self.sequence_length), dtype=np.int64)
@@ -248,6 +247,58 @@ class MIND_Dev(MIND):
 
         return return_dict
 
+
+
+class MIND_Test(MIND):
+    def __init__(self, manager) -> None:
+        data_dir = os.path.join(manager.data_root, "MIND", f"MIND{manager.scale}_test")
+        super().__init__(manager, data_dir)
+
+
+    def __getitem__(self, index):
+        impr_index, impr_news = self.imprs[index]
+        histories = self.histories[impr_index]
+        user_index = self.user_indices[impr_index]
+
+        cdd_mask = np.zeros(self.impr_size, dtype=np.bool8)
+        cdd_mask[:len(impr_news)] = 1
+        cdd_idx = np.asarray(impr_news + [0] * (self.impr_size - len(impr_news)), dtype=np.int64)
+
+        his_idx = histories[:self.his_size]
+        his_mask = np.zeros(self.his_size, dtype=np.int64)
+        if len(his_idx) == 0:
+            his_mask[0] = 1
+        else:
+            his_mask[:len(his_idx)] = 1
+        # padding user history in case there are fewer historical clicks
+        if len(his_idx) < self.his_size:
+            his_idx = his_idx + [0] * (self.his_size - len(his_idx))
+        his_idx = np.asarray(his_idx, dtype=np.int64)
+
+        cdd_token_id = self.token_ids[cdd_idx]
+        his_token_id = self.token_ids[his_idx]
+        cdd_attn_mask = self.attn_masks[cdd_idx]
+        his_attn_mask = self.attn_masks[his_idx]
+
+        return_dict = {
+            "impr_index": impr_index,
+            "user_index": user_index,
+            "cdd_idx": cdd_idx,
+            "his_idx": his_idx,
+            "cdd_mask": cdd_mask,
+            "his_mask": his_mask,
+            "cdd_token_id": cdd_token_id,
+            "his_token_id": his_token_id,
+            "cdd_attn_mask": cdd_attn_mask,
+            "his_attn_mask": his_attn_mask,
+        }
+        if self.enable_gate == "weight":
+            cdd_gate_mask = self.gate_masks[cdd_idx]
+            his_gate_mask = self.gate_masks[his_idx]
+            return_dict["cdd_gate_mask"] = cdd_gate_mask
+            return_dict["his_gate_mask"] = his_gate_mask
+
+        return return_dict
 
 
 class MIND_News(MIND):
@@ -415,8 +466,8 @@ def cache_behaviors(behaviors_path, cache_dir, nid2index, manager):
             for line in tqdm(f, desc="Caching User Behaviors", ncols=80):
                 _, uid, _, history, impression = line.strip("\n").split("\t")
 
+                impr_news = [nid2index[x] for x in impression.split()]
                 history = [nid2index[x] for x in history.split()]
-                impr_news = impression.split()
                 uindex = uid2index[uid]
 
                 for i in range(0, len(impr_news), manager.impr_size):

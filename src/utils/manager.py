@@ -169,6 +169,7 @@ class Manager():
         dataloader_map = {
             "train": ["train", "dev", "news"],
             "dev": ["dev", "news"],
+            "test": ["test", "news"],
             "inspect": ["news"]
         }
         news_cache_dir_map = {
@@ -280,6 +281,11 @@ class Manager():
             dataset_dev = MIND_Dev(self)
             sampler_dev = Sequential_Sampler(len(dataset_dev), num_replicas=self.world_size, rank=self.rank)
             loaders["dev"] = DataLoader(dataset_dev, batch_size=self.batch_size_encode, sampler=sampler_dev, drop_last=False)
+
+        if "test" in self.dataloaders:
+            dataset_test = MIND_Test(self)
+            sampler_test = Sequential_Sampler(len(dataset_test), num_replicas=self.world_size, rank=self.rank)
+            loaders["test"] = DataLoader(dataset_test, batch_size=self.batch_size_encode, sampler=sampler_test, drop_last=False)
 
         if "news" in self.dataloaders:
             dataset_news = MIND_News(self)
