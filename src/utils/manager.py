@@ -43,7 +43,7 @@ class Manager():
         parser.add_argument("-m", "--mode", dest="mode", help="choose mode", default="train")
         parser.add_argument("-d", "--device", dest="device", help="gpu index, -1 for cpu", type=int, default=0)
         parser.add_argument("-bs", "--batch-size", dest="batch_size", help="batch size in training", type=int, default=32)
-        parser.add_argument("-bse", "--batch-size-encode", dest="batch_size_encode", help="batch size in encoding", type=int, default=200)
+        parser.add_argument("-bse", "--batch-size-eval", dest="batch_size_eval", help="batch size in encoding", type=int, default=200)
         # parser.add_argument("-dl", "--dataloaders", dest="dataloaders", help="training dataloaders", nargs="+", action="extend", choices=["train", "dev", "news", "behaviors"], default=["train", "dev", "news"])
 
         parser.add_argument("-ck","--checkpoint", dest="checkpoint", help="load the model from checkpoint before training/evaluating", type=str, default="none")
@@ -280,17 +280,17 @@ class Manager():
         if "dev" in self.dataloaders:
             dataset_dev = MIND_Dev(self)
             sampler_dev = Sequential_Sampler(len(dataset_dev), num_replicas=self.world_size, rank=self.rank)
-            loaders["dev"] = DataLoader(dataset_dev, batch_size=self.batch_size_encode, sampler=sampler_dev, drop_last=False)
+            loaders["dev"] = DataLoader(dataset_dev, batch_size=self.batch_size_eval, sampler=sampler_dev, drop_last=False)
 
         if "test" in self.dataloaders:
             dataset_test = MIND_Test(self)
             sampler_test = Sequential_Sampler(len(dataset_test), num_replicas=self.world_size, rank=self.rank)
-            loaders["test"] = DataLoader(dataset_test, batch_size=self.batch_size_encode, sampler=sampler_test, drop_last=False)
+            loaders["test"] = DataLoader(dataset_test, batch_size=self.batch_size_eval, sampler=sampler_test, drop_last=False)
 
         if "news" in self.dataloaders:
             dataset_news = MIND_News(self)
-            sampler_news = Sequential_Sampler(len(dataset_news), num_replicas=self.world_size, rank=self.rank)
-            loaders["news"] = DataLoader(dataset_news, batch_size=self.batch_size_encode, sampler=sampler_news, drop_last=False)
+            # no sampler
+            loaders["news"] = DataLoader(dataset_news, batch_size=self.batch_size_eval, drop_last=False)
 
         return loaders
 

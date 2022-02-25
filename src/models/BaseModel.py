@@ -55,7 +55,7 @@ class BaseModel(nn.Module):
         return optimizer, scheduler
 
 
-    def _gather_tensors(self, local_tensor):
+    def _gather_tensors_variable_shape(self, local_tensor):
         """
         gather tensors from all gpus
 
@@ -65,8 +65,8 @@ class BaseModel(nn.Module):
         Returns:
             all_tensors: concatenation of local_tensor in each process
         """
-        all_tensors = [torch.empty_like(local_tensor) for _ in range(self.world_size)]
-        dist.all_gather(all_tensors, local_tensor)
+        all_tensors = [None for _ in range(self.world_size)]
+        dist.all_gather_object(all_tensors, local_tensor)
         all_tensors[self.rank] = local_tensor
         return torch.cat(all_tensors, dim=0)
 
@@ -262,24 +262,28 @@ class TwoTowerBaseModel(BaseModel):
 
     @torch.no_grad()
     def encode_news(self, manager, loader_news):
-        news_embeddings = torch.zeros((len(loader_news.sampler), self.hidden_dim), device=self.device)
+        # every process holds the same copy of news embeddings
+        news_embeddings = torch.zeros((len(loader_news.dataset), self.hidden_dim), device=self.device)
 
-        start_idx = end_idx = 0
-        for i, x in enumerate(tqdm(loader_news, ncols=80, desc="Encoding News")):
-            _, news_embedding = self._encode_news(x)
+        # only encode news on the master node to avoid any problems possibly raised by gatherring
+        if manager.rank == 0:
+            start_idx = end_idx = 0
+            for i, x in enumerate(tqdm(loader_news, ncols=80, desc="Encoding News")):
+                _, news_embedding = self._encode_news(x)
 
-            end_idx = start_idx + news_embedding.shape[0]
-            news_embeddings[start_idx: end_idx] = news_embedding
-            start_idx = end_idx
+                end_idx = start_idx + news_embedding.shape[0]
+                news_embeddings[start_idx: end_idx] = news_embedding
+                start_idx = end_idx
 
-            if manager.debug:
-                if i > 5:
-                    break
-
+                if manager.debug:
+                    if i > 5:
+                        break
+        # broadcast news embeddings to all gpus
         if manager.distributed:
-            self.news_embeddings = self._gather_tensors(news_embeddings)
-        else:
-            self.news_embeddings = news_embeddings
+            dist.broadcast(news_embeddings, 0)
+
+        self.news_embeddings = news_embeddings
+        print(self.news_embeddings[:2])
 
 
     def _dev(self, manager, loaders):

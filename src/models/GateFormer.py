@@ -87,9 +87,17 @@ class UserOneTowerGateFormer(TwoTowerBaseModel):
                 gate_mask = None
             B = token_id.shape[0]
 
-            token_weight = self.weighter(token_id, attn_mask)
+            try:
+                token_weight = self.weighter(token_id, attn_mask)
+            except:
+                print("fuck weighter")
+                raise
             # B, NH, K
-            gated_token_id, gated_attn_mask, gated_token_weight = self._compute_gate(token_id, attn_mask, gate_mask, token_weight)
+            try:
+                gated_token_id, gated_attn_mask, gated_token_weight = self._compute_gate(token_id, attn_mask, gate_mask, token_weight)
+            except:
+                print("fuck gating")
+                raise
             gated_token_id = gated_token_id.reshape(B, -1)
             gated_attn_mask = gated_attn_mask.reshape(B, -1)
             gated_token_id = torch.cat([self.cls_token_id.expand(B, 1), gated_token_id], dim=-1)
@@ -99,7 +107,11 @@ class UserOneTowerGateFormer(TwoTowerBaseModel):
                 gated_token_weight = torch.cat([self.cls_token_weight.expand(B, 1), gated_token_weight], dim=-1)
 
             # B, 1, D
-            user_embedding = self.encoder(gated_token_id, gated_attn_mask, token_weight=gated_token_weight)[1].unsqueeze(-2)
+            try:
+                user_embedding = self.encoder(gated_token_id, gated_attn_mask, token_weight=gated_token_weight)[1].unsqueeze(-2)
+            except:
+                print("fuck encoding")
+                raise
 
         return user_embedding
 
@@ -121,5 +133,6 @@ class UserOneTowerGateFormer(TwoTowerBaseModel):
         cdd_idx = x["cdd_idx"].to(self.device, non_blocking=True)
         cdd_embedding = self.news_embeddings[cdd_idx]
         user_embedding = self._encode_user(x)
+
         logits = self._compute_logits(cdd_embedding, user_embedding)
         return logits
