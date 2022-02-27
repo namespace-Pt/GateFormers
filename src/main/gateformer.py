@@ -70,7 +70,7 @@ if __name__ == "__main__":
         "userEncoder": "rnn",
         "weighter": "cnn",
         "validate_step": "0.5e",
-        "hold_step": "1.5e",
+        "hold_step": "2e",
     }
     manager = Manager(config)
 

@@ -134,7 +134,7 @@ class BaseModel(nn.Module):
         preds = self._test(manager, loaders)
 
         if manager.rank == 0:
-            save_dir = "data/cache/results/{}/{}".format(self.name, manager.scale)
+            save_dir = "data/cache/results/{}/{}/{}".format(self.name, manager.scale, os.path.split(manager.checkpoint)[-1])
             os.makedirs(save_dir, exist_ok=True)
             save_path = save_dir + "/prediction.txt"
 
@@ -283,7 +283,6 @@ class TwoTowerBaseModel(BaseModel):
             dist.broadcast(news_embeddings, 0)
 
         self.news_embeddings = news_embeddings
-        print(self.news_embeddings[:2])
 
 
     def _dev(self, manager, loaders):
