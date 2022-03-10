@@ -36,7 +36,7 @@ def main(rank, manager):
 
     if manager.mode == 'train':
         if manager.world_size > 1:
-            model = DDP(model, device_ids=[rank], output_device=rank)
+            model = DDP(model, device_ids=[manager.device], output_device=manager.device)
         manager.train(model, loaders)
 
     elif manager.mode == 'dev':
