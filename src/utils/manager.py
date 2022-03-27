@@ -449,7 +449,7 @@ class Manager():
 
                     # prevent SIGABRT
                     if self.distributed:
-                        dist.barrier(device_ids=[self.rank])
+                        dist.barrier(device_ids=[self.device])
                     # continue training
                     model.train()
 
