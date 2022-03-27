@@ -14,7 +14,7 @@ from datetime import timedelta
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from utils.util import Sequential_Sampler, load_pickle, save_pickle, download_plm
+from utils.util import Sequential_Sampler, Specific_Sampler, load_pickle, save_pickle, download_plm
 from utils.dataset import *
 
 logger = logging.getLogger("Manager")
@@ -44,7 +44,7 @@ class Manager():
         parser.add_argument("-d", "--device", dest="device", help="gpu index, -1 for cpu", type=int, default=0)
         parser.add_argument("-bs", "--batch-size", dest="batch_size", help="batch size in training", type=int, default=32)
         parser.add_argument("-bse", "--batch-size-eval", dest="batch_size_eval", help="batch size in encoding", type=int, default=200)
-        # parser.add_argument("-dl", "--dataloaders", dest="dataloaders", help="training dataloaders", nargs="+", action="extend", choices=["train", "dev", "news", "behaviors"], default=["train", "dev", "news"])
+        parser.add_argument("-dl", "--dataloaders", dest="dataloaders", help="training dataloaders", nargs="+", action="extend", default=[])
 
         parser.add_argument("-ck","--checkpoint", dest="checkpoint", help="load the model from checkpoint before training/evaluating", type=str, default="none")
         parser.add_argument("-vs","--validate-step", dest="validate_step", help="evaluate and save the model every step", type=str, default="0")
@@ -201,8 +201,10 @@ class Manager():
             "MINDlarge_train": 101527,
             "MINDlarge_dev": 72023,
             "MINDlarge_test": 120961,
+            "CosMos": 9995,
         }
-        self.dataloaders = dataloader_map[self.mode]
+        if len(self.dataloaders) == 0:
+            self.dataloaders = dataloader_map[self.mode]
         self.news_cache_dir = news_cache_dir_map[self.enable_gate]
         self.news_file = news_file_map[self.enable_gate]
 
@@ -291,6 +293,11 @@ class Manager():
             dataset_news = MIND_News(self)
             # no sampler
             loaders["news"] = DataLoader(dataset_news, batch_size=self.batch_size_eval, drop_last=False)
+        elif "cosmos" in self.dataloaders:
+            dataset_news = CosMos_News(self)
+            sampler_sports = Specific_Sampler(load_pickle("/data/v-pezhang/Code/GateFormer/src/data/cache/MIND/CosMos/sports_idx.pkl"))
+            # no sampler
+            loaders["news"] = DataLoader(dataset_news, batch_size=self.batch_size_eval, sampler=sampler_sports, drop_last=False)
 
         return loaders
 

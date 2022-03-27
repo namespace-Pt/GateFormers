@@ -307,12 +307,6 @@ class MIND_News(MIND):
         data_dir = os.path.join(manager.data_root, "MIND", f"MIND{manager.scale}_{data_mode}")
         super().__init__(manager, data_dir, load_news=True, load_behaviors=False)
 
-        # cut off padded news
-        # self.token_ids = self.token_ids[1:]
-        # self.attn_masks = self.attn_masks[1:]
-        # if hasattr(self, "gate_masks"):
-        #     self.gate_masks = self.gate_masks[1:]
-
 
     def __getitem__(self, index):
         cdd_token_id = self.token_ids[index]
@@ -331,6 +325,28 @@ class MIND_News(MIND):
 
 
 
+class CosMos_News(MIND):
+    def __init__(self, manager) -> None:
+        data_mode = "test" if manager.mode == "test" else "dev"
+        data_dir = os.path.join(manager.data_root, "MIND", "CosMos")
+        super().__init__(manager, data_dir, load_news=True, load_behaviors=False)
+
+
+    def __getitem__(self, index):
+        cdd_token_id = self.token_ids[index]
+        cdd_attn_mask = self.attn_masks[index]
+
+        return_dict =  {
+            "cdd_idx": index,
+            "cdd_token_id": cdd_token_id,
+            "cdd_attn_mask": cdd_attn_mask,
+        }
+        if self.enable_gate == "weight":
+            cdd_gate_mask = self.gate_masks[index]
+            return_dict["cdd_gate_mask"] = cdd_gate_mask
+
+        return return_dict
+
 
 def tokenize_news(news_path, cache_dir, news_num, tokenizer, max_title_length, max_abs_length):
     title_token_ids = [[]] * news_num
@@ -338,7 +354,8 @@ def tokenize_news(news_path, cache_dir, news_num, tokenizer, max_title_length, m
 
     with open(news_path, 'r') as f:
         for idx, line in enumerate(tqdm(f, total=news_num, desc="Tokenizing News", ncols=80)):
-            id, category, subcategory, title, abs, _, _, _ = line.strip("\n").split("\t")
+            fields = line.strip("\n").split("\t")
+            id, category, subcategory, title, abs = fields[:5]
 
             title_token_id = tokenizer.encode(title, max_length=max_title_length)
             title_token_ids[idx] = title_token_id
@@ -484,4 +501,106 @@ def cache_behaviors(behaviors_path, cache_dir, nid2index, manager):
             "user_indices": user_indices,
         }
         save_pickle(save_dict, os.path.join(cache_dir, "behaviors.pkl"))
+
+
+
+# class CosMos(Dataset):
+#     def __init__(self, manager, data_dir) -> None:
+#         super().__init__()
+#         self.logger = logging.getLogger(type(self).__name__)
+
+#         self.his_size = manager.his_size
+#         self.impr_size = manager.impr_size
+
+#         self.max_title_length = manager.max_title_length
+#         self.max_abs_length = manager.max_abs_length
+#         self.title_length = manager.title_length
+#         self.abs_length = manager.abs_length
+
+#         self.negative_num = manager.negative_num
+
+#         self.cache_root = manager.cache_root
+#         self.data_root = manager.data_root
+
+#         data_dir_name = data_dir.split("/")[-1]
+#         self.news_cache_root = os.path.join(manager.cache_root, "MIND", data_dir_name, "news")
+
+#         # set all enable_xxx as attributes
+#         for k,v in vars(manager).items():
+#             if k.startswith("enable"):
+#                 setattr(self, k, v)
+
+#         if manager.rank == 0:
+#             if not os.path.exists(os.path.join(self.news_cache_root, manager.news_cache_dir, "title_token_ids.pkl")):
+#                 news_path = os.path.join(data_dir, manager.news_file)
+#                 cache_news(news_path, self.news_cache_root, manager)
+
+#         if manager.distributed:
+#             dist.barrier(device_ids=[manager.device])
+
+#         if manager.rank == 0:
+#             self.logger.info(f"Loading Cache at {data_dir_name}")
+
+#         pad_token_id = manager.special_token_ids["[PAD]"]
+#         sep_token_id = manager.special_token_ids["[SEP]"]
+#         cls_token_id = manager.special_token_ids["[CLS]"]
+#         punc_token_ids = manager.special_token_ids["punctuations"]
+
+#         # index=0 is padded news
+#         news_num = manager.news_num[]
+#         token_ids = [[] for _ in range(news_num)]
+#         self.sequence_length = manager.sequence_length
+
+#         start_idx = 0
+#         if "title" in self.enable_fields:
+#             title_token_ids = load_pickle(os.path.join(self.news_cache_root, manager.news_cache_dir, "title_token_ids.pkl"))
+#             for i, token_id in enumerate(title_token_ids, start=1):
+#                 token_id = token_id[start_idx: start_idx + self.title_length]
+#                 # use [SEP] to separate title and abstract
+#                 if len(token_id) > 2 - start_idx:
+#                     token_id[-1] = sep_token_id
+#                     token_ids[i].extend(token_id.copy())
+#             if start_idx == 0:
+#                 start_idx += 1
+
+#         if "abs" in self.enable_fields:
+#             abs_token_ids = load_pickle(os.path.join(self.news_cache_root, manager.news_cache_dir, "abs_token_ids.pkl"))
+#             for i, token_id in enumerate(abs_token_ids, start=1):
+#                 # offset to remove an extra [CLS]
+#                 token_id = token_id[start_idx: self.abs_length + start_idx]
+#                 # use [SEP] to separate abs and abstract
+#                 if len(token_id) > 2 - start_idx:
+#                     token_id[-1] = sep_token_id
+#                     token_ids[i].extend(token_id.copy())
+#             if start_idx == 0:
+#                 start_idx += 1
+
+#         attn_masks = np.zeros((news_num, self.sequence_length), dtype=np.int64)
+#         if self.enable_gate == "weight":
+#             gate_masks = np.zeros((news_num, self.sequence_length), dtype=np.int64)
+
+#         for i, token_id in enumerate(token_ids):
+#             s_len = len(token_id)
+#             if s_len < self.sequence_length:
+#                 token_ids[i] = token_id + [pad_token_id] * (self.sequence_length - s_len)
+#             attn_masks[i][:s_len] = 1
+#             if self.enable_gate == "weight":
+#                 # deduplicate and remove punctuations and remove special token ids
+#                 # token_set = set()
+#                 # for j, x in enumerate(token_id):
+#                 #     if x not in token_set and x != cls_token_id and x != sep_token_id and x not in punc_token_ids:
+#                 #         gate_masks[i, j] = 1
+#                 #         token_set.add(x)
+#                 for j, x in enumerate(token_id):
+#                     if x != cls_token_id and x != sep_token_id and x not in punc_token_ids:
+#                         gate_masks[i, j] = 1
+
+#         self.token_ids = np.asarray(token_ids, dtype=np.int64)
+#         self.attn_masks = np.asarray(attn_masks, dtype=np.int64)
+#         if self.enable_gate == "weight":
+#             self.gate_masks = np.asarray(gate_masks, dtype=np.int64)
+
+
+#     def __len__(self):
+#         return len(self.token_ids)
 

@@ -97,11 +97,9 @@ def construct_nid2index(news_path, cache_dir):
     """
         Construct news ID to news INDEX dictionary, index starting from 1
     """
-    news_df = pd.read_table(news_path, index_col=None, names=[
-                            "newsID", "category", "subcategory", "title", "abstract", "url", "entity_title", "entity_abstract"], quoting=3)
-
+    news_df = pd.read_table(news_path, index_col=None, header=None, quoting=3, usecols=[0])
     nid2index = {}
-    for v in news_df["newsID"]:
+    for v in news_df:
         if v in nid2index:
             continue
         # plus one because all news offsets from 1
@@ -285,6 +283,19 @@ class Sequential_Sampler:
     def __len__(self):
         return self.end - self.start
 
+
+
+class Specific_Sampler:
+    def __init__(self, indices) -> None:
+        super().__init__()
+        self.indices = indices
+
+    def __iter__(self):
+        return iter(self.indices)
+
+    def __len__(self):
+        return len(self.indices)
+        
 
 
 class BM25(object):

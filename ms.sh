@@ -8,6 +8,7 @@ echo 'alias ns="nvidia-smi"' >> ~/.bashrc
 source ~/.profile
 source ~/.bashrc
 sudo apt-get -y install screen
+sudo apt-get -y install zip
 
 # sudo apt-get -y install rsync
 cd /data/v-pezhang/Code/GateFormer/src
