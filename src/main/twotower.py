@@ -40,10 +40,12 @@ def main(rank, manager):
         manager.train(model, loaders)
 
     elif manager.mode == 'dev':
-        # if isinstance(model, DDP):
-        #     model.module.dev(manager, loaders, load=True, log=True)
-        # else:
-            model.dev(manager, loaders, load=True, log=True)
+        manager.load(model)
+        model.dev(manager, loaders, log=True)
+
+    elif manager.mode == 'test':
+        manager.load(model)
+        model.test(manager, loaders)
 
 
 if __name__ == "__main__":

@@ -103,10 +103,8 @@ class BaseModel(nn.Module):
 
 
     @torch.no_grad()
-    def dev(self, manager, loaders, load=True, log=False):
+    def dev(self, manager, loaders, log=False):
         self.eval()
-        if load:
-            manager.load(self)
 
         labels, preds = self._dev(manager, loaders)
 
@@ -126,10 +124,8 @@ class BaseModel(nn.Module):
 
 
     @torch.no_grad()
-    def test(self, manager, loaders, load=True, log=False):
+    def test(self, manager, loaders):
         self.eval()
-        if load:
-            manager.load(self)
 
         preds = self._test(manager, loaders)
 

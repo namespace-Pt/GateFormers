@@ -432,9 +432,9 @@ class Manager():
 
                 if total_steps > hold_step and total_steps % validate_step == 0:
                     if isinstance(model, torch.nn.parallel.DistributedDataParallel):
-                        result = model.module.dev(self, loaders, load=False)
+                        result = model.module.dev(self, loaders)
                     else:
-                        result = model.dev(self, loaders, load=False)
+                        result = model.dev(self, loaders)
                     # only the result of master node is useful
                     if self.rank == 0:
                         result["step"] = total_steps

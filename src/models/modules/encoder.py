@@ -100,6 +100,7 @@ class GatedBertNewsEncoder(BaseNewsEncoder):
 
         if token_weight is not None:
             token_weight = token_weight.view(-1, original_shape[-1]).unsqueeze(-1)
+            # straight-through trick
             token_embedding = token_embedding * (token_weight + (1 - token_weight.detach()))
 
         extended_attn_mask = extend_attention_mask(attn_mask)

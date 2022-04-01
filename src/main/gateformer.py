@@ -52,10 +52,12 @@ def main(rank, manager):
         manager.train(model, loaders)
 
     elif manager.mode == 'dev':
-        model.dev(manager, loaders, load=True, log=True)
+        manager.load(model)
+        model.dev(manager, loaders, log=True)
 
     elif manager.mode == 'test':
-        model.test(manager, loaders, load=True, log=True)
+        manager.load(model)
+        model.test(manager, loaders)
 
     elif manager.mode == "inspect":
         manager.load(model)
